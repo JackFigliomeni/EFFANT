@@ -19,6 +19,7 @@ RUN mkdir -p /app/logs
 
 EXPOSE 8000
 
-# Migrate then start API
-CMD python scripts/migrate.py && \
-    uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --log-level info
+COPY start.sh .
+RUN chmod +x start.sh
+
+CMD ["./start.sh"]
