@@ -32,7 +32,7 @@ export default function App() {
     if (resetToken || checkoutSuccess || goPortal) clearUrlParams()
   }, [])
 
-  function handleGetStarted(tier: 'starter' | 'pro') {
+  function handleGetStarted(_tier: 'starter' | 'pro') {
     setPage('portal')
   }
 
