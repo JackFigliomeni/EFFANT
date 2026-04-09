@@ -1,8 +1,9 @@
 // Portal API — uses JWT Bearer auth, not X-API-Key
+const BASE = import.meta.env.VITE_API_URL ?? ''
 
 async function portalFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('effant_token')
-  const res = await fetch(path, {
+  const res = await fetch(`${BASE}${path}`, {
     ...opts,
     headers: {
       'Content-Type': 'application/json',

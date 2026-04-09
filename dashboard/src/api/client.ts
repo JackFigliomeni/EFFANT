@@ -1,8 +1,8 @@
-// Use relative URL so requests go through the Vite proxy → avoids CORS issues
+const BASE = import.meta.env.VITE_API_URL ?? ''
 const KEY = import.meta.env.VITE_API_KEY ?? ''
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(`${BASE}${path}`, {
     headers: { 'X-API-Key': KEY },
   })
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)

@@ -457,32 +457,32 @@ const ENDPOINTS = [
   {
     method: 'GET', path: '/v1/health', ttl: '10s', desc: 'Full system status — DB, Redis, pipeline health, and entity counts.',
     params: [],
-    curl: `curl -H "X-API-Key: YOUR_KEY" https://api.effant.io/v1/health`,
+    curl: `curl -H "X-API-Key: YOUR_KEY" https://api.effant.tech/v1/health`,
   },
   {
     method: 'GET', path: '/v1/anomalies', ttl: '30s', desc: 'Paginated anomaly feed. Filter by severity or type.',
     params: ['severity: critical | high | medium | low', 'anomaly_type: sandwich_attack | wash_trading | whale_movement | volume_spike', 'limit: 1–500 (default 100)', 'offset: pagination offset'],
-    curl: `curl -H "X-API-Key: YOUR_KEY" "https://api.effant.io/v1/anomalies?severity=critical&limit=50"`,
+    curl: `curl -H "X-API-Key: YOUR_KEY" "https://api.effant.tech/v1/anomalies?severity=critical&limit=50"`,
   },
   {
     method: 'GET', path: '/v1/clusters', ttl: '5min', desc: 'Entity clusters detected via Louvain community detection.',
     params: ['min_wallets: minimum cluster size (default 2)', 'dominant_type: filter by entity type', 'limit: 1–500', 'offset: pagination'],
-    curl: `curl -H "X-API-Key: YOUR_KEY" "https://api.effant.io/v1/clusters?min_wallets=3&limit=50"`,
+    curl: `curl -H "X-API-Key: YOUR_KEY" "https://api.effant.tech/v1/clusters?min_wallets=3&limit=50"`,
   },
   {
     method: 'GET', path: '/v1/wallet/{address}', ttl: '60s', desc: 'Full wallet profile: label, risk score, volume, cluster, anomaly count.',
     params: ['address: base58 Solana wallet address'],
-    curl: `curl -H "X-API-Key: YOUR_KEY" https://api.effant.io/v1/wallet/6AvA8pyr22Ta8iEjJnpYmLhLJuNSpxCa8MdxPqfyzaix`,
+    curl: `curl -H "X-API-Key: YOUR_KEY" https://api.effant.tech/v1/wallet/6AvA8pyr22Ta8iEjJnpYmLhLJuNSpxCa8MdxPqfyzaix`,
   },
   {
     method: 'GET', path: '/v1/wallet/{address}/transactions', ttl: '60s', desc: 'Enriched transaction history for a wallet.',
     params: ['address: base58 Solana wallet address', 'limit: 1–200 (default 50)'],
-    curl: `curl -H "X-API-Key: YOUR_KEY" "https://api.effant.io/v1/wallet/6AvA8pyr22Ta8iEjJnpYmLhLJuNSpxCa8MdxPqfyzaix/transactions?limit=20"`,
+    curl: `curl -H "X-API-Key: YOUR_KEY" "https://api.effant.tech/v1/wallet/6AvA8pyr22Ta8iEjJnpYmLhLJuNSpxCa8MdxPqfyzaix/transactions?limit=20"`,
   },
   {
     method: 'GET', path: '/v1/flows', ttl: '30s', desc: 'Large fund movements above a SOL threshold.',
     params: ['min_sol: minimum transfer size in SOL (default 10000)', 'limit: 1–500'],
-    curl: `curl -H "X-API-Key: YOUR_KEY" "https://api.effant.io/v1/flows?min_sol=100&limit=50"`,
+    curl: `curl -H "X-API-Key: YOUR_KEY" "https://api.effant.tech/v1/flows?min_sol=100&limit=50"`,
   },
 ]
 
