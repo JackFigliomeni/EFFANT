@@ -40,8 +40,19 @@ from redis import asyncio as aioredis
 from api.auth import APIKeyMiddleware
 from api.billing import router as billing_router, set_pool as billing_set_pool
 from api.webhooks import router as webhooks_router, set_pool as webhooks_set_pool
+from api.admin import router as admin_router, set_pool as admin_set_pool
 
 load_dotenv()
+
+# ── Sentry error tracking ─────────────────────────────────────────────────────
+import sentry_sdk
+SENTRY_DSN = os.getenv("SENTRY_DSN")
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        traces_sample_rate=0.1,
+        environment=os.getenv("RAILWAY_ENVIRONMENT", "production"),
+    )
 
 log = logging.getLogger("effant.api")
 logging.basicConfig(
@@ -95,6 +106,7 @@ async def lifespan(app: FastAPI):
     get_pool()
     billing_set_pool(get_pool())
     webhooks_set_pool(get_pool())
+    admin_set_pool(get_pool())
     log.info("DB connection pool initialized")
 
     # Redis + cache
@@ -129,6 +141,7 @@ app.add_middleware(
 app.add_middleware(APIKeyMiddleware, pool=get_pool())
 app.include_router(billing_router)
 app.include_router(webhooks_router)
+app.include_router(admin_router)
 
 
 # ── Cache key builder ─────────────────────────────────────────────────────────

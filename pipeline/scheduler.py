@@ -23,6 +23,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.triggers.cron import CronTrigger
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
 from dotenv import load_dotenv
 
@@ -339,6 +340,93 @@ def on_job_executed(event):
     pass  # success path already logged inside ingest_job
 
 
+# ── Daily email digest ────────────────────────────────────────────────────────
+
+SENDGRID_API_KEY   = os.getenv("SENDGRID_API_KEY")
+SENDGRID_FROM      = os.getenv("SENDGRID_FROM_EMAIL", "noreply@effant.tech")
+DIGEST_RECIPIENT   = os.getenv("DIGEST_EMAIL")          # your personal inbox
+
+
+def send_daily_digest():
+    """Send yesterday's stats to DIGEST_EMAIL via SendGrid."""
+    if not SENDGRID_API_KEY or not DIGEST_RECIPIENT:
+        log.warning("Daily digest skipped: SENDGRID_API_KEY or DIGEST_EMAIL not set")
+        return
+
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT
+                  (SELECT COUNT(*) FROM users) AS total_users,
+                  (SELECT COUNT(*) FROM subscriptions WHERE status='active') AS active_subs,
+                  (SELECT COUNT(*) FROM subscriptions WHERE status='active' AND tier='starter') AS starters,
+                  (SELECT COUNT(*) FROM subscriptions WHERE status='active' AND tier='pro') AS pros,
+                  (SELECT COUNT(*) FROM api_call_log
+                   WHERE called_at >= NOW() - INTERVAL '24 hours') AS calls_24h,
+                  (SELECT COUNT(*) FROM wallets) AS wallets,
+                  (SELECT COUNT(*) FROM transactions) AS txs
+            """)
+            s = dict(cur.fetchone())
+
+            cur.execute("""
+                SELECT u.email, COUNT(l.id) AS calls
+                FROM api_call_log l
+                JOIN api_keys k ON k.key_hash = l.key_hash
+                JOIN users u ON u.id = k.user_id
+                WHERE l.called_at >= NOW() - INTERVAL '24 hours'
+                GROUP BY u.email ORDER BY calls DESC LIMIT 5
+            """)
+            top = cur.fetchall()
+        conn.close()
+
+        mrr = s["starters"] * 499 + s["pros"] * 4900
+        top_html = "".join(
+            f"<tr><td>{r['email']}</td><td>{r['calls']:,}</td></tr>" for r in top
+        ) or "<tr><td colspan='2'>No calls yet</td></tr>"
+
+        yesterday = (datetime.now(timezone.utc)).strftime("%Y-%m-%d")
+        html = f"""
+        <h2>EFFANT Daily Digest — {yesterday}</h2>
+        <table border="1" cellpadding="6" cellspacing="0">
+          <tr><th>Metric</th><th>Value</th></tr>
+          <tr><td>Total Users</td><td>{s['total_users']:,}</td></tr>
+          <tr><td>Active Subscriptions</td><td>{s['active_subs']:,} ({s['starters']} Starter / {s['pros']} Pro)</td></tr>
+          <tr><td>MRR</td><td>${mrr:,}</td></tr>
+          <tr><td>API Calls (24h)</td><td>{s['calls_24h']:,}</td></tr>
+          <tr><td>Wallets Indexed</td><td>{s['wallets']:,}</td></tr>
+          <tr><td>Transactions (30d)</td><td>{s['txs']:,}</td></tr>
+        </table>
+        <h3>Top 5 Users by API Calls (24h)</h3>
+        <table border="1" cellpadding="6" cellspacing="0">
+          <tr><th>Email</th><th>Calls</th></tr>
+          {top_html}
+        </table>
+        <p style="color:#888;font-size:12px">Sent by EFFANT pipeline · effant.tech</p>
+        """
+
+        import urllib.request, json as _json
+        payload = _json.dumps({
+            "personalizations": [{"to": [{"email": DIGEST_RECIPIENT}]}],
+            "from": {"email": SENDGRID_FROM, "name": "EFFANT"},
+            "subject": f"EFFANT Daily Digest — {yesterday}",
+            "content": [{"type": "text/html", "value": html}],
+        }).encode()
+        req = urllib.request.Request(
+            "https://api.sendgrid.com/v3/mail/send",
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {SENDGRID_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            log.info(f"Daily digest sent to {DIGEST_RECIPIENT} (status {resp.status})")
+    except Exception as exc:
+        log.error(f"Daily digest failed: {exc}")
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main():
@@ -370,6 +458,14 @@ def main():
         max_instances=1,          # never overlap runs
         misfire_grace_time=10,    # skip if > 10s late
         coalesce=True,            # merge missed fires into one
+    )
+    # Daily digest at 08:00 UTC
+    scheduler.add_job(
+        send_daily_digest,
+        trigger=CronTrigger(hour=8, minute=0, timezone="UTC"),
+        id="daily_digest",
+        name="Daily email digest",
+        max_instances=1,
     )
     scheduler.add_listener(on_job_error,    EVENT_JOB_ERROR)
     scheduler.add_listener(on_job_executed, EVENT_JOB_EXECUTED)
