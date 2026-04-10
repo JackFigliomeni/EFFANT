@@ -5,6 +5,8 @@ import { isLoggedIn } from '../api/portal'
 interface LandingProps {
   onGetStarted: (tier: 'starter' | 'pro') => void
   onLogin: () => void
+  onPrivacy: () => void
+  onTerms: () => void
 }
 
 const STARTER_FEATURES = [
@@ -127,7 +129,7 @@ function PlanCard({
   )
 }
 
-export function Landing({ onGetStarted, onLogin }: LandingProps) {
+export function Landing({ onGetStarted, onLogin, onPrivacy, onTerms }: LandingProps) {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       {/* Nav */}
@@ -306,6 +308,27 @@ curl -H "X-API-Key: eff_sk_..." \\
         <p className="mono text-xs" style={{ color: 'var(--dim)' }}>
           EFFANT · Solana Intelligence Platform · billing@effant.tech
         </p>
+        <div className="flex items-center justify-center gap-4 mt-3">
+          <button
+            onClick={onPrivacy}
+            className="mono text-xs"
+            style={{ background: 'none', border: 'none', color: 'var(--dim)', cursor: 'pointer', padding: 0 }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--dim)')}
+          >
+            Privacy Policy
+          </button>
+          <span style={{ color: 'var(--dim)' }}>·</span>
+          <button
+            onClick={onTerms}
+            className="mono text-xs"
+            style={{ background: 'none', border: 'none', color: 'var(--dim)', cursor: 'pointer', padding: 0 }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--dim)')}
+          >
+            Terms of Service
+          </button>
+        </div>
       </footer>
     </div>
   )

@@ -4,8 +4,10 @@ import { Overview } from './pages/Overview'
 import { WalletExplorer } from './pages/WalletExplorer'
 import { CustomerPortal } from './pages/CustomerPortal'
 import { Landing } from './pages/Landing'
+import { PrivacyPolicy } from './pages/PrivacyPolicy'
+import { TermsOfService } from './pages/TermsOfService'
 
-type Page = 'landing' | 'overview' | 'explorer' | 'portal'
+type Page = 'landing' | 'overview' | 'explorer' | 'portal' | 'privacy' | 'terms'
 
 function parseUrlParams() {
   const p = new URLSearchParams(window.location.search)
@@ -36,11 +38,21 @@ export default function App() {
     setPage('portal')
   }
 
+  if (page === 'privacy') {
+    return <PrivacyPolicy onBack={() => setPage('landing')} />
+  }
+
+  if (page === 'terms') {
+    return <TermsOfService onBack={() => setPage('landing')} />
+  }
+
   if (page === 'landing') {
     return (
       <Landing
         onGetStarted={handleGetStarted}
         onLogin={() => setPage('portal')}
+        onPrivacy={() => setPage('privacy')}
+        onTerms={() => setPage('terms')}
       />
     )
   }
