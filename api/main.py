@@ -771,39 +771,46 @@ class _ResetBody(BaseModel):
 
 
 def _send_reset_email(email: str, raw_token: str) -> None:
-    from sendgrid import SendGridAPIClient
-    from sendgrid.helpers.mail import Mail
+    import urllib.request as _urllib
+    import json as _json
     sg_key    = os.getenv("SENDGRID_API_KEY", "")
-    from_addr = os.getenv("SENDGRID_FROM_EMAIL", "billing@effant.io")
+    from_addr = os.getenv("SENDGRID_FROM_EMAIL", "billing@effant.tech")
     frontend  = os.getenv("FRONTEND_URL", "http://localhost:5173")
     if not sg_key:
         log.warning("SENDGRID_API_KEY not set — skipping reset email")
         return
     reset_url = f"{frontend}?reset={raw_token}"
-    msg = Mail(
-        from_email=from_addr,
-        to_emails=email,
-        subject="EFFANT — Reset your password",
-        html_content=f"""
-        <div style="font-family:monospace;background:#0a0e1a;color:#e2e8f0;padding:40px;max-width:560px">
-          <p style="color:#5b6cf8;font-size:20px;font-weight:bold">EFFANT</p>
-          <h2 style="color:#fff;font-size:16px;margin:24px 0 8px">Reset your password</h2>
-          <p style="color:#94a3b8;font-size:13px;margin-bottom:24px">
-            Click the link below to reset your password. This link expires in 1 hour.
-          </p>
-          <a href="{reset_url}"
-             style="display:inline-block;background:#5b6cf8;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600">
-            Reset password →
-          </a>
-          <p style="color:#475569;font-size:11px;margin-top:24px">
-            If you didn't request this, ignore this email — your password won't change.
-          </p>
-        </div>
-        """,
-    )
+    html = f"""
+    <div style="font-family:monospace;background:#0a0e1a;color:#e2e8f0;padding:40px;max-width:560px">
+      <p style="color:#5b6cf8;font-size:20px;font-weight:bold">EFFANT</p>
+      <h2 style="color:#fff;font-size:16px;margin:24px 0 8px">Reset your password</h2>
+      <p style="color:#94a3b8;font-size:13px;margin-bottom:24px">
+        Click the link below to reset your password. This link expires in 1 hour.
+      </p>
+      <a href="{reset_url}"
+         style="display:inline-block;background:#5b6cf8;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600">
+        Reset password →
+      </a>
+      <p style="color:#475569;font-size:11px;margin-top:24px">
+        If you didn't request this, ignore this email — your password won't change.
+      </p>
+    </div>
+    """
+    payload = _json.dumps({
+        "personalizations": [{"to": [{"email": email}]}],
+        "from": {"email": from_addr, "name": "EFFANT"},
+        "subject": "EFFANT — Reset your password",
+        "content": [{"type": "text/html", "value": html}],
+    }).encode()
     try:
-        SendGridAPIClient(sg_key).send(msg)
-        log.info(f"Reset email sent to {email}")
+        req = _urllib.Request(
+            "https://api.sendgrid.com/v3/mail/send",
+            data=payload,
+            headers={"Authorization": f"Bearer {sg_key}", "Content-Type": "application/json"},
+            method="POST",
+        )
+        with _urllib.urlopen(req, timeout=10) as resp:
+            log.info(f"Reset email sent to {email} (status {resp.status})")
     except Exception as exc:
         log.error(f"SendGrid reset email error: {exc}")
 
