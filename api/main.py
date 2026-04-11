@@ -818,7 +818,9 @@ def _send_reset_email(email: str, raw_token: str) -> None:
 @app.post("/portal/forgot-password", tags=["portal"])
 async def portal_forgot_password(body: _ForgotBody):
     from datetime import timedelta
+    log.info(f"Forgot password request for: {body.email.lower()}")
     user = _portal_query_one("SELECT id, email FROM users WHERE email = %s", (body.email.lower(),))
+    log.info(f"User lookup result: {'found' if user else 'not found'}")
     # Always 200 — don't leak whether email exists
     if not user:
         return {"message": "If that email is registered, a reset link has been sent."}
