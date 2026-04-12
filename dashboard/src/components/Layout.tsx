@@ -8,11 +8,11 @@ interface LayoutProps {
   children: ReactNode
 }
 
-const NAV: { id: Page; label: string }[] = [
+const NAV: { id: Page; label: string; noHighlight?: boolean }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'explorer', label: 'Wallet Explorer' },
   { id: 'portal',   label: 'API Portal' },
-  { id: 'landing',  label: 'Pricing' },
+  { id: 'portal',   label: 'Pricing', noHighlight: true },
 ]
 
 export function Layout({ page, onNav, children }: LayoutProps) {
@@ -31,24 +31,27 @@ export function Layout({ page, onNav, children }: LayoutProps) {
           </div>
 
           {/* Nav */}
-          <nav className="flex items-center gap-1 flex-1">
-            {NAV.map(n => (
-              <button
-                key={n.id}
-                onClick={() => onNav(n.id)}
-                className="px-4 py-2 rounded text-xs font-medium transition-all"
-                style={{
-                  background: page === n.id ? 'rgba(91,108,248,0.12)' : 'transparent',
-                  color: page === n.id ? '#fff' : 'var(--muted)',
-                  border: page === n.id ? '1px solid rgba(91,108,248,0.25)' : '1px solid transparent',
-                  letterSpacing: '0.03em',
-                }}
-                onMouseEnter={e => { if (page !== n.id) e.currentTarget.style.color = 'var(--text)' }}
-                onMouseLeave={e => { if (page !== n.id) e.currentTarget.style.color = 'var(--muted)' }}
-              >
-                {n.label}
-              </button>
-            ))}
+          <nav className="flex items-center gap-8 flex-1">
+            {NAV.map(n => {
+              const isActive = !n.noHighlight && page === n.id
+              return (
+                <button
+                  key={n.label}
+                  onClick={() => onNav(n.id)}
+                  className="px-4 py-2 rounded text-xs font-medium transition-all"
+                  style={{
+                    background: isActive ? 'rgba(91,108,248,0.12)' : 'transparent',
+                    color: isActive ? '#fff' : 'var(--muted)',
+                    border: isActive ? '1px solid rgba(91,108,248,0.25)' : '1px solid transparent',
+                    letterSpacing: '0.03em',
+                  }}
+                  onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = 'var(--text)' }}
+                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = 'var(--muted)' }}
+                >
+                  {n.label}
+                </button>
+              )
+            })}
           </nav>
 
           {/* Live indicator */}

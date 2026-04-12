@@ -216,7 +216,7 @@ export function Landing({ onGetStarted, onLogin, onPrivacy, onTerms }: LandingPr
           ].map(({ label, value, sub }, i) => (
             <div
               key={label}
-              className="flex flex-col gap-1 px-8 py-6"
+              className="flex flex-col items-center text-center gap-1 px-8 py-6"
               style={{
                 background: 'var(--surface)',
                 borderRight: i < 3 ? '1px solid var(--border)' : 'none',
@@ -308,12 +308,6 @@ export function Landing({ onGetStarted, onLogin, onPrivacy, onTerms }: LandingPr
           />
         </div>
 
-        <div className="flex items-center justify-center gap-2 mt-8">
-          <span className="h-1.5 w-1.5 rounded-full" style={{ background: '#eab308' }} />
-          <p className="text-xs mono" style={{ color: 'var(--dim)' }}>
-            Test mode active · card 4242 4242 4242 4242 · any expiry · any CVC
-          </p>
-        </div>
       </section>
 
       {/* Footer */}
