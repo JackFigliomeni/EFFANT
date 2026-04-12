@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchAnomalies } from '../api/client'
+import { fetchPublicAnomalies } from '../api/client'
 import type { Anomaly, ApiResponse } from '../api/client'
 
 const SEV_COLOR: Record<string, string> = {
@@ -78,7 +78,7 @@ function RowSkeleton() {
 export function AnomalyFeed() {
   const { data, isLoading, isError, dataUpdatedAt } = useQuery<ApiResponse<Anomaly[]>>({
     queryKey: ['anomalies'],
-    queryFn: () => fetchAnomalies(50),
+    queryFn: () => fetchPublicAnomalies(50),
     refetchInterval: 30_000,
   })
 

@@ -247,18 +247,21 @@ class FlowRecord(BaseModel):
 
 @app.get("/health", tags=["meta"])
 def health(request: Request):
-    row = query_one("SELECT COUNT(*) AS wallets FROM wallets")
-    key = getattr(request.state, "api_key", None)
+    db       = _db_status()
+    redis    = _redis_status()
+    pipeline = _pipeline_status()
+    overall  = "ok"
+    if not db.get("connected"):
+        overall = "degraded"
+    if pipeline.get("consecutive_failures", 0) >= 3:
+        overall = "degraded"
     return {
-        "status":  "ok",
-        "wallets": row["wallets"] if row else 0,
-        "time":    datetime.now(tz=timezone.utc).isoformat(),
-        "auth": {
-            "authenticated": key is not None,
-            "tier":          key["tier"]        if key else None,
-            "calls_today":   key["calls_today"] if key else None,
-            "calls_limit":   key["calls_limit"] if key else None,
-        },
+        "status":   overall,
+        "time":     datetime.now(tz=timezone.utc).isoformat(),
+        "version":  "0.1.0",
+        "database": db,
+        "redis":    redis,
+        "pipeline": pipeline,
     }
 
 
@@ -540,6 +543,24 @@ async def get_clusters(
     """Cluster data cached for 5 minutes."""
     result = await run_in_threadpool(_fetch_clusters, min_wallets, dominant_type, limit, offset)
     return ok(result["clusters"], total=result["total"], limit=limit, offset=offset)
+
+
+# ── GET /public/anomalies  (no auth, overview dashboard) ─────────────────────
+
+@app.get("/public/anomalies", tags=["public"])
+async def public_anomalies(limit: int = Query(50, ge=1, le=100)) -> dict:
+    """Unauthenticated anomaly feed for the overview dashboard."""
+    result = await run_in_threadpool(_fetch_anomalies, None, None, limit, 0)
+    return ok(result["records"], total=result["total"], limit=limit, offset=0)
+
+
+# ── GET /public/clusters  (no auth, overview dashboard) ──────────────────────
+
+@app.get("/public/clusters", tags=["public"])
+async def public_clusters(limit: int = Query(20, ge=1, le=50)) -> dict:
+    """Unauthenticated cluster list for the overview dashboard."""
+    result = await run_in_threadpool(_fetch_clusters, 2, None, limit, 0)
+    return ok(result["clusters"], total=result["total"], limit=limit, offset=0)
 
 
 # ── GET /v1/flows ─────────────────────────────────────────────────────────────

@@ -9,6 +9,12 @@ async function get<T>(path: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
+async function getPublic<T>(path: string): Promise<T> {
+  const res = await fetch(`${BASE}${path}`)
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+  return res.json() as Promise<T>
+}
+
 // ── Response shapes ──────────────────────────────────────────────────────────
 
 export interface Meta {
@@ -126,11 +132,15 @@ export interface WalletAnomaly {
 
 // ── Fetchers ─────────────────────────────────────────────────────────────────
 
-export const fetchHealth   = () => get<HealthData>('/v1/health')
-export const fetchAnomalies = (limit = 50) =>
+export const fetchHealth        = () => getPublic<HealthData>('/health')
+export const fetchAnomalies     = (limit = 50) =>
   get<ApiResponse<Anomaly[]>>(`/v1/anomalies?limit=${limit}`)
-export const fetchClusters  = (limit = 20) =>
+export const fetchClusters      = (limit = 20) =>
   get<ApiResponse<Cluster[]>>(`/v1/clusters?min_wallets=2&limit=${limit}`)
+export const fetchPublicAnomalies = (limit = 50) =>
+  getPublic<ApiResponse<Anomaly[]>>(`/public/anomalies?limit=${limit}`)
+export const fetchPublicClusters  = (limit = 20) =>
+  getPublic<ApiResponse<Cluster[]>>(`/public/clusters?limit=${limit}`)
 
 export const fetchWallet = (address: string) =>
   get<ApiResponse<WalletProfile>>(`/v1/wallet/${address}`)

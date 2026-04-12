@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchClusters } from '../api/client'
+import { fetchPublicClusters } from '../api/client'
 import type { Cluster, ApiResponse } from '../api/client'
 
 const TYPE_COLOR: Record<string, string> = {
@@ -77,7 +77,7 @@ function RowSkeleton() {
 export function ClusterPanel() {
   const { data, isLoading, isError, dataUpdatedAt } = useQuery<ApiResponse<Cluster[]>>({
     queryKey: ['clusters'],
-    queryFn: () => fetchClusters(20),
+    queryFn: () => fetchPublicClusters(20),
     refetchInterval: 30_000,
   })
 

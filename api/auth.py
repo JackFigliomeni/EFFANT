@@ -70,7 +70,7 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         path = request.url.path
 
         # Pass through public routes and any /docs sub-paths
-        if path in PUBLIC_PATHS or path.startswith("/docs") or path.startswith("/redoc") or path.startswith("/portal") or path.startswith("/billing") or path == "/admin":
+        if path in PUBLIC_PATHS or path.startswith("/docs") or path.startswith("/redoc") or path.startswith("/portal") or path.startswith("/billing") or path == "/admin" or path.startswith("/public/"):
             return await call_next(request)
 
         # ── 1. Extract header ─────────────────────────────────────────────
