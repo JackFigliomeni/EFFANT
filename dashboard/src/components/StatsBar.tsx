@@ -10,43 +10,63 @@ function relTime(iso: string | null): string {
   return `${Math.floor(s / 3600)}h ago`
 }
 
-function Dot({ ok }: { ok: boolean }) {
+function StatusDot({ ok }: { ok: boolean }) {
   return (
-    <span className="inline-block h-1.5 w-1.5 rounded-full"
-      style={{ background: ok ? 'var(--green)' : 'var(--red)' }} />
+    <span
+      className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
+      style={{ background: ok ? 'var(--green)' : 'var(--red)' }}
+    />
   )
 }
 
-interface StatBlockProps {
+function StatusChip({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <StatusDot ok={ok} />
+      <span style={{ color: ok ? 'var(--muted)' : 'var(--red)' }}>{label}</span>
+    </span>
+  )
+}
+
+interface MetricProps {
   label: string
   value: string | number
   sub?: string
-  highlight?: boolean
-  danger?: boolean
+  accent?: boolean
+  warn?: boolean
 }
 
-function StatBlock({ label, value, sub, highlight, danger }: StatBlockProps) {
-  const valueColor = danger ? 'var(--red)' : highlight ? '#fff' : '#cbd5e1'
+function Metric({ label, value, sub, accent, warn }: MetricProps) {
+  const valueColor = warn ? 'var(--red)' : accent ? '#fff' : '#e2e8f0'
   return (
-    <div className="flex flex-col gap-1 px-5 py-4"
-      style={{ borderRight: '1px solid var(--border)' }}>
-      <span className="mono text-xs uppercase tracking-widest" style={{ color: 'var(--muted)' }}>
+    <div
+      className="flex flex-col gap-1.5 px-6 py-4"
+      style={{ borderRight: '1px solid var(--border)' }}
+    >
+      <span
+        className="mono text-xs uppercase tracking-widest"
+        style={{ color: 'var(--dim)', letterSpacing: '0.08em' }}
+      >
         {label}
       </span>
-      <span className="mono font-semibold tabular-nums"
-        style={{ fontSize: 22, color: valueColor, letterSpacing: '-0.02em' }}>
+      <span
+        className="mono font-bold tabular-nums"
+        style={{ fontSize: 26, color: valueColor, letterSpacing: '-0.03em', lineHeight: 1 }}
+      >
         {typeof value === 'number' ? value.toLocaleString() : value}
       </span>
-      {sub && <span className="text-xs" style={{ color: 'var(--muted)' }}>{sub}</span>}
+      {sub && (
+        <span className="text-xs" style={{ color: 'var(--dim)' }}>{sub}</span>
+      )}
     </div>
   )
 }
 
-function StatBlockSkeleton() {
+function MetricSkeleton() {
   return (
-    <div className="px-5 py-4 space-y-2" style={{ borderRight: '1px solid var(--border)' }}>
-      <div className="h-2.5 w-20 rounded animate-pulse" style={{ background: 'var(--border2)' }} />
-      <div className="h-6 w-24 rounded animate-pulse" style={{ background: 'var(--border2)' }} />
+    <div className="px-6 py-4 space-y-2" style={{ borderRight: '1px solid var(--border)' }}>
+      <div className="h-2 w-16 rounded animate-pulse" style={{ background: 'var(--border2)' }} />
+      <div className="h-7 w-24 rounded animate-pulse" style={{ background: 'var(--border2)' }} />
     </div>
   )
 }
@@ -60,53 +80,56 @@ export function StatsBar() {
 
   if (isError) {
     return (
-      <div className="rounded border px-4 py-3 text-xs"
-        style={{ borderColor: 'var(--red)', background: '#1a0a0e', color: 'var(--red)' }}>
-        ✗  Cannot reach API at localhost:8000 — is the server running?
+      <div
+        className="rounded px-5 py-3 mono text-xs flex items-center gap-3"
+        style={{ borderColor: 'var(--red)', background: '#1a0a0e', color: 'var(--red)', border: '1px solid var(--red)' }}
+      >
+        <StatusDot ok={false} />
+        Cannot reach API at {import.meta.env.VITE_API_URL || 'localhost:8000'} — is the server running?
       </div>
     )
   }
 
-  const db = data?.database
+  const db   = data?.database
   const pipe = data?.pipeline
   const redis = data?.redis
+  const systemOk = !isLoading && data?.status === 'ok'
 
   return (
-    <div className="rounded" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-      {/* Status strip */}
-      <div className="flex items-center gap-5 px-5 py-2 text-xs"
-        style={{ borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
-        <span className="flex items-center gap-1.5">
-          <Dot ok={!isLoading && data?.status === 'ok'} />
-          {isLoading ? 'Connecting…' : `System ${data?.status ?? '?'}`}
+    <div className="rounded overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+
+      {/* Terminal-style status bar */}
+      <div
+        className="flex items-center gap-6 px-6 py-2.5 mono text-xs"
+        style={{ borderBottom: '1px solid var(--border)', background: '#0a0d14' }}
+      >
+        <span className="font-semibold tracking-widest" style={{ color: 'var(--accent)', fontSize: 11 }}>
+          EFFANT.INTELLIGENCE
         </span>
-        <span className="flex items-center gap-1.5">
-          <Dot ok={db?.connected ?? false} />
-          PostgreSQL {db?.connected ? 'connected' : 'down'}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <Dot ok={redis?.connected ?? false} />
-          Redis {redis?.connected ? redis.used_memory : 'down'}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <Dot ok={(pipe?.consecutive_failures ?? 0) === 0} />
-          Pipeline {pipe ? relTime(pipe.last_success) : '…'}
-        </span>
-        <span className="ml-auto mono" style={{ color: 'var(--dim)' }}>
+        <div className="flex items-center gap-5" style={{ color: 'var(--muted)' }}>
+          <StatusChip ok={systemOk} label={isLoading ? 'connecting…' : `System ${data?.status ?? '?'}`} />
+          <StatusChip ok={db?.connected ?? false} label={`PostgreSQL ${db?.connected ? 'connected' : 'down'}`} />
+          <StatusChip ok={redis?.connected ?? false} label={`Redis ${redis?.connected ? redis.used_memory : 'down'}`} />
+          <StatusChip
+            ok={(pipe?.consecutive_failures ?? 0) === 0}
+            label={`Pipeline ${pipe ? relTime(pipe.last_success) : '—'}`}
+          />
+        </div>
+        <span className="ml-auto tabular-nums" style={{ color: 'var(--dim)' }}>
           {data ? new Date(data.time).toLocaleTimeString('en-US', { hour12: false }) : '—'}
         </span>
       </div>
 
-      {/* Stat blocks */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 last:[&>*]:border-r-0">
+      {/* Metric blocks */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 [&>*:last-child]:border-r-0">
         {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => <StatBlockSkeleton key={i} />)
+          Array.from({ length: 4 }).map((_, i) => <MetricSkeleton key={i} />)
         ) : (
           <>
-            <StatBlock label="Wallets" value={db?.wallets ?? 0} sub="indexed addresses" highlight />
-            <StatBlock label="Transactions" value={db?.transactions ?? 0} sub="on-chain records" />
-            <StatBlock label="Anomalies" value={db?.anomalies ?? 0} sub="detected events" danger={(db?.anomalies ?? 0) > 0} />
-            <StatBlock label="Clusters" value={db?.clusters ?? 0} sub="entity groups ≥2" />
+            <Metric label="Wallets" value={db?.wallets ?? 0} sub="indexed addresses" accent />
+            <Metric label="Transactions" value={db?.transactions ?? 0} sub="on-chain records" />
+            <Metric label="Anomalies" value={db?.anomalies ?? 0} sub="detected events" warn={(db?.anomalies ?? 0) > 0} />
+            <Metric label="Clusters" value={db?.clusters ?? 0} sub="entity groups ≥2" />
           </>
         )}
       </div>

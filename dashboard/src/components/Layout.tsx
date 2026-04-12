@@ -18,39 +18,48 @@ const NAV: { id: Page; label: string }[] = [
 export function Layout({ page, onNav, children }: LayoutProps) {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
-      <header style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
-        className="sticky top-0 z-20">
-        <div className="flex items-center justify-between px-6 py-2.5"
-          style={{ borderBottom: '1px solid var(--border)' }}>
-          <div className="flex items-center gap-3">
-            <span className="mono font-semibold tracking-tight" style={{ color: 'var(--accent)', fontSize: 15 }}>
+      <header className="sticky top-0 z-20" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
+        <div className="flex items-center gap-8 px-8 py-3">
+
+          {/* Brand */}
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="mono font-bold" style={{ color: 'var(--accent)', fontSize: 15, letterSpacing: '-0.01em' }}>
               EFFANT
             </span>
-            <span className="text-xs" style={{ color: 'var(--muted)' }}>
-              Solana Intelligence Platform
-            </span>
+            <span style={{ color: 'var(--border)', userSelect: 'none' }}>|</span>
+            <span className="text-xs" style={{ color: 'var(--dim)' }}>Solana Intelligence</span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted)' }}>
+
+          {/* Nav */}
+          <nav className="flex items-center gap-1 flex-1">
+            {NAV.map(n => (
+              <button
+                key={n.id}
+                onClick={() => onNav(n.id)}
+                className="px-4 py-2 rounded text-xs font-medium transition-all"
+                style={{
+                  background: page === n.id ? 'rgba(91,108,248,0.12)' : 'transparent',
+                  color: page === n.id ? '#fff' : 'var(--muted)',
+                  border: page === n.id ? '1px solid rgba(91,108,248,0.25)' : '1px solid transparent',
+                  letterSpacing: '0.03em',
+                }}
+                onMouseEnter={e => { if (page !== n.id) e.currentTarget.style.color = 'var(--text)' }}
+                onMouseLeave={e => { if (page !== n.id) e.currentTarget.style.color = 'var(--muted)' }}
+              >
+                {n.label}
+              </button>
+            ))}
+          </nav>
+
+          {/* Live indicator */}
+          <div className="flex items-center gap-2 shrink-0">
             <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: 'var(--green)' }} />
-            LIVE · 30s
+            <span className="mono text-xs" style={{ color: 'var(--dim)' }}>LIVE · 30s</span>
           </div>
-        </div>
-        <div className="flex items-end px-6">
-          {NAV.map(n => (
-            <button key={n.id} onClick={() => onNav(n.id)}
-              className="px-4 py-2.5 text-xs font-medium tracking-wide transition-colors"
-              style={{
-                borderBottom: page === n.id ? '2px solid var(--accent)' : '2px solid transparent',
-                color: page === n.id ? '#fff' : 'var(--muted)',
-                letterSpacing: '0.05em',
-                textTransform: 'uppercase',
-              }}>
-              {n.label}
-            </button>
-          ))}
         </div>
       </header>
-      <main className="mx-auto px-6 py-6" style={{ maxWidth: 1400 }}>
+
+      <main className="mx-auto px-8 py-6" style={{ maxWidth: 1400 }}>
         {children}
       </main>
     </div>

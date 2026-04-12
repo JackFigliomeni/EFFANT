@@ -209,28 +209,30 @@ export function BillingPanel({ authed }: { authed: boolean }) {
           <p className="mono text-xs" style={{ color: 'var(--yellow)' }}>{msg}</p>
         )}
 
-        {/* Test mode notice */}
-        <div className="rounded px-3 py-2.5 text-xs"
-          style={{ background: '#eab30810', border: '1px solid #eab30830', color: '#eab308' }}>
-          <span className="mono font-semibold">TEST MODE</span>
-          <span className="ml-2" style={{ color: 'var(--muted)' }}>
-            Use card <span className="mono">4242 4242 4242 4242</span>, any expiry, any CVC.
-          </span>
-        </div>
-
-        {/* Plan cards */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {PLANS.map(plan => (
-            <PlanCard
-              key={plan.tier}
-              plan={plan}
-              currentTier={sub?.tier}
-              status={sub?.status}
-              onCheckout={handleCheckout}
-              loading={checkoutLoading === plan.tier}
-            />
-          ))}
-        </div>
+        {/* Plan cards — only shown when user has no active subscription */}
+        {!sub?.has_subscription || !['active', 'canceling'].includes(sub?.status ?? '') ? (
+          <>
+            <div className="rounded px-3 py-2.5 text-xs"
+              style={{ background: '#eab30810', border: '1px solid #eab30830', color: '#eab308' }}>
+              <span className="mono font-semibold">TEST MODE</span>
+              <span className="ml-2" style={{ color: 'var(--muted)' }}>
+                Use card <span className="mono">4242 4242 4242 4242</span>, any expiry, any CVC.
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {PLANS.map(plan => (
+                <PlanCard
+                  key={plan.tier}
+                  plan={plan}
+                  currentTier={sub?.tier}
+                  status={sub?.status}
+                  onCheckout={handleCheckout}
+                  loading={checkoutLoading === plan.tier}
+                />
+              ))}
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   )

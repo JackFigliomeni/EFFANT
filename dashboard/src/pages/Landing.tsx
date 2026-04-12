@@ -138,25 +138,28 @@ export function Landing({ onGetStarted, onLogin, onPrivacy, onTerms }: LandingPr
         style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
       >
         <div className="flex items-center gap-3">
-          <span className="mono font-bold" style={{ color: 'var(--accent)', fontSize: 16 }}>
+          <span className="mono font-bold" style={{ color: 'var(--accent)', fontSize: 15, letterSpacing: '-0.01em' }}>
             EFFANT
           </span>
-          <span className="text-xs" style={{ color: 'var(--muted)' }}>Solana Intelligence</span>
+          <span style={{ color: 'var(--border)' }}>|</span>
+          <span className="text-xs" style={{ color: 'var(--dim)' }}>Solana Intelligence</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <button
             onClick={onLogin}
-            className="text-sm transition-colors"
-            style={{ color: 'var(--muted)' }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}
+            className="text-xs font-medium px-4 py-2 rounded transition-all"
+            style={{ color: 'var(--muted)', border: '1px solid var(--border)' }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'var(--border2)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
           >
             Sign in
           </button>
           <button
             onClick={() => onGetStarted('starter')}
-            className="rounded px-4 py-2 text-sm font-semibold"
+            className="rounded px-4 py-2 text-xs font-semibold transition-opacity"
             style={{ background: 'var(--accent)', color: '#fff' }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
           >
             Get started
           </button>
@@ -164,34 +167,38 @@ export function Landing({ onGetStarted, onLogin, onPrivacy, onTerms }: LandingPr
       </nav>
 
       {/* Hero */}
-      <section className="text-center px-6 pt-24 pb-20 mx-auto" style={{ maxWidth: 800 }}>
+      <section className="text-center px-6 pt-28 pb-24 mx-auto" style={{ maxWidth: 760 }}>
         <div
-          className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs mono mb-6"
-          style={{ background: '#5b6cf818', border: '1px solid #5b6cf840', color: 'var(--accent)' }}
+          className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs mono mb-8"
+          style={{ background: '#5b6cf810', border: '1px solid #5b6cf835', color: 'var(--accent)' }}
         >
           <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent)' }} />
-          Live Solana intelligence data
+          Live Solana intelligence · updating every 30s
         </div>
-        <h1 className="text-5xl font-bold mb-6 leading-tight" style={{ color: '#fff' }}>
+        <h1 className="font-bold mb-5 leading-tight" style={{ color: '#fff', fontSize: 52 }}>
           Solana on-chain intelligence<br />
           <span style={{ color: 'var(--accent)' }}>for builders who ship.</span>
         </h1>
-        <p className="text-lg mb-10" style={{ color: 'var(--muted)', maxWidth: 560, margin: '0 auto 40px' }}>
+        <p className="text-base mb-10 mx-auto" style={{ color: 'var(--muted)', maxWidth: 520, lineHeight: 1.7 }}>
           Wallet profiling, anomaly detection, entity clustering, and whale alerts —
           all via a single REST API. From raw transactions to signal in milliseconds.
         </p>
-        <div className="flex items-center justify-center gap-4 flex-wrap">
+        <div className="flex items-center justify-center gap-3 flex-wrap">
           <button
             onClick={() => onGetStarted('starter')}
-            className="rounded px-8 py-3 font-semibold text-sm"
+            className="rounded px-8 py-3 font-semibold text-sm transition-opacity"
             style={{ background: 'var(--accent)', color: '#fff' }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
           >
             Start free trial →
           </button>
           <button
             onClick={onLogin}
-            className="rounded px-8 py-3 font-semibold text-sm"
-            style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
+            className="rounded px-8 py-3 font-semibold text-sm transition-all"
+            style={{ border: '1px solid var(--border)', color: 'var(--muted)' }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'var(--border2)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
           >
             Sign in
           </button>
@@ -199,20 +206,25 @@ export function Landing({ onGetStarted, onLogin, onPrivacy, onTerms }: LandingPr
       </section>
 
       {/* Stats strip */}
-      <section
-        className="py-8 mx-6 rounded-lg mb-20"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-      >
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 px-8">
+      <section className="mx-6 mb-20 rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+        <div className="grid grid-cols-2 md:grid-cols-4">
           {[
-            { label: 'Wallets tracked', value: '2.4M+' },
-            { label: 'Transactions indexed', value: '180M+' },
-            { label: 'Anomalies detected', value: '12K+' },
-            { label: 'API uptime', value: '99.9%' },
-          ].map(({ label, value }) => (
-            <div key={label} className="text-center">
-              <p className="text-2xl font-bold mb-1" style={{ color: '#fff' }}>{value}</p>
-              <p className="text-xs" style={{ color: 'var(--muted)' }}>{label}</p>
+            { label: 'Wallets tracked',      value: '2.4M+',  sub: 'indexed addresses'  },
+            { label: 'Transactions indexed', value: '180M+',  sub: 'on-chain records'    },
+            { label: 'Anomalies detected',   value: '12K+',   sub: 'flagged events'      },
+            { label: 'API uptime',           value: '99.9%',  sub: 'last 90 days'        },
+          ].map(({ label, value, sub }, i) => (
+            <div
+              key={label}
+              className="flex flex-col gap-1 px-8 py-6"
+              style={{
+                background: 'var(--surface)',
+                borderRight: i < 3 ? '1px solid var(--border)' : 'none',
+              }}
+            >
+              <p className="mono text-xs uppercase tracking-widest mb-1" style={{ color: 'var(--dim)' }}>{label}</p>
+              <p className="mono font-bold tabular-nums" style={{ color: '#fff', fontSize: 28, letterSpacing: '-0.03em', lineHeight: 1 }}>{value}</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--dim)' }}>{sub}</p>
             </div>
           ))}
         </div>
@@ -228,45 +240,46 @@ export function Landing({ onGetStarted, onLogin, onPrivacy, onTerms }: LandingPr
             Integrate in under 5 minutes. No SDKs required.
           </p>
         </div>
-        <div
-          className="rounded-lg overflow-hidden"
-          style={{ border: '1px solid var(--border)' }}
-        >
+        <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+          {/* Terminal chrome */}
           <div
-            className="flex items-center gap-2 px-4 py-2.5"
-            style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
+            className="flex items-center justify-between px-4 py-3"
+            style={{ background: '#0d1117', borderBottom: '1px solid var(--border)' }}
           >
-            {['#f43f5e', '#eab308', '#22c55e'].map(c => (
-              <span key={c} className="h-2.5 w-2.5 rounded-full" style={{ background: c }} />
-            ))}
-            <span className="mono text-xs ml-2" style={{ color: 'var(--muted)' }}>terminal</span>
+            <div className="flex items-center gap-1.5">
+              {['#f43f5e', '#eab308', '#22c55e'].map(c => (
+                <span key={c} className="h-2.5 w-2.5 rounded-full" style={{ background: c }} />
+              ))}
+            </div>
+            <span className="mono text-xs" style={{ color: 'var(--dim)' }}>bash</span>
+            <div style={{ width: 48 }} />
           </div>
           <pre
-            className="p-6 mono text-sm leading-relaxed overflow-x-auto"
+            className="p-7 mono text-sm leading-loose overflow-x-auto"
             style={{ background: '#060a10', color: '#94a3b8' }}
-          >
-{`# Detect anomalies on any wallet
-curl -H "X-API-Key: eff_sk_..." \\
-  "https://api.effant.io/v1/anomalies?severity=critical"
-
-# Response
-{
-  "data": [
-    {
-      "wallet_address": "6AvA8pyr...",
-      "anomaly_type": "sandwich_attack",
-      "severity": "critical",
-      "detected_at": "2025-04-07T14:22:01Z"
-    }
-  ],
-  "meta": { "count": 1 }
-}`}
-          </pre>
+          >{[
+            '# Detect anomalies on any wallet',
+            'curl -H "X-API-Key: eff_sk_..." \\',
+            '  "https://api.effant.tech/v1/anomalies?severity=critical"',
+            '',
+            '# Response',
+            '{',
+            '  "data": [',
+            '    {',
+            '      "wallet_address": "6AvA8pyr...",',
+            '      "anomaly_type":   "sandwich_attack",',
+            '      "severity":       "critical",',
+            '      "detected_at":    "2025-04-07T14:22:01Z"',
+            '    }',
+            '  ],',
+            '  "meta": { "count": 1 }',
+            '}',
+          ].join('\n')}</pre>
         </div>
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="px-6 mb-24 mx-auto" style={{ maxWidth: 900 }}>
+      <section id="pricing" className="px-6 mb-24 mx-auto" style={{ maxWidth: 860 }}>
         <div className="text-center mb-12">
           <h2 className="text-2xl font-bold mb-3" style={{ color: '#fff' }}>Simple, transparent pricing</h2>
           <p className="text-sm" style={{ color: 'var(--muted)' }}>
@@ -274,7 +287,7 @@ curl -H "X-API-Key: eff_sk_..." \\
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-5">
           <PlanCard
             tier="starter"
             price="$499"
@@ -295,9 +308,12 @@ curl -H "X-API-Key: eff_sk_..." \\
           />
         </div>
 
-        <p className="text-center mt-8 text-xs" style={{ color: 'var(--dim)' }}>
-          Test mode active · Use card 4242 4242 4242 4242 · Any future expiry · Any CVC
-        </p>
+        <div className="flex items-center justify-center gap-2 mt-8">
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: '#eab308' }} />
+          <p className="text-xs mono" style={{ color: 'var(--dim)' }}>
+            Test mode active · card 4242 4242 4242 4242 · any expiry · any CVC
+          </p>
+        </div>
       </section>
 
       {/* Footer */}
