@@ -27,6 +27,11 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
 from dotenv import load_dotenv
 
+# Pipeline modules (scheduler.py is run from project root, so these resolve correctly)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from anomaly_detector import run as _run_anomaly_detection
+from clusterer import run as _run_clustering
+
 load_dotenv()
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
@@ -340,6 +345,32 @@ def on_job_executed(event):
     pass  # success path already logged inside ingest_job
 
 
+# ── Anomaly detection job ─────────────────────────────────────────────────────
+
+def anomaly_job():
+    log.info("── Anomaly detection starting ──────────────────────────")
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        n = _run_anomaly_detection(conn)
+        conn.close()
+        log.info(f"── Anomaly detection done: {n} records ────────────")
+    except Exception as exc:
+        log.error(f"Anomaly job failed: {exc}")
+
+
+# ── Clustering job ────────────────────────────────────────────────────────────
+
+def cluster_job():
+    log.info("── Entity clustering starting ──────────────────────────")
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        n = _run_clustering(conn)
+        conn.close()
+        log.info(f"── Entity clustering done: {n} clusters ────────────")
+    except Exception as exc:
+        log.error(f"Cluster job failed: {exc}")
+
+
 # ── Daily email digest ────────────────────────────────────────────────────────
 
 SENDGRID_API_KEY   = os.getenv("SENDGRID_API_KEY")
@@ -459,6 +490,26 @@ def main():
         misfire_grace_time=10,    # skip if > 10s late
         coalesce=True,            # merge missed fires into one
     )
+    scheduler.add_job(
+        anomaly_job,
+        trigger="interval",
+        minutes=10,
+        id="anomaly_detection",
+        name="Anomaly detection",
+        max_instances=1,
+        misfire_grace_time=60,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        cluster_job,
+        trigger="interval",
+        minutes=60,
+        id="clustering",
+        name="Entity clustering",
+        max_instances=1,
+        misfire_grace_time=300,
+        coalesce=True,
+    )
     # Daily digest at 08:00 UTC
     scheduler.add_job(
         send_daily_digest,
@@ -471,8 +522,10 @@ def main():
     scheduler.add_listener(on_job_executed, EVENT_JOB_EXECUTED)
 
     # Run once immediately at startup
-    log.info("Running initial job immediately...")
+    log.info("Running initial jobs immediately...")
     ingest_job(batch_size=args.batch, max_retries=args.max_retries)
+    anomaly_job()
+    cluster_job()
 
     log.info(f"Scheduler started. Next run in {args.interval}s. Ctrl+C to stop.")
     try:

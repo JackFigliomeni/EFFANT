@@ -589,6 +589,20 @@ def print_report(anomalies: list[dict]):
     log.info("=" * 70)
 
 
+# ── Callable entry point (for import by scheduler) ────────────────────────────
+
+def run(conn) -> int:
+    """Run all detectors against an open DB connection. Returns anomaly count."""
+    all_anomalies: list[dict] = []
+    all_anomalies.extend(detect_wash_trading(conn))
+    all_anomalies.extend(detect_volume_spikes(conn))
+    all_anomalies.extend(detect_sandwich_attacks(conn))
+    all_anomalies.extend(detect_whale_movements(conn))
+    n = write_anomalies(conn, all_anomalies, dry_run=False)
+    log.info(f"Anomaly run complete: {n} records written")
+    return n
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():

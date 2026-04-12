@@ -351,6 +351,22 @@ def print_report(summaries: list[dict], communities: list[frozenset[str]], walle
     )
 
 
+# ── Callable entry point (for import by scheduler) ────────────────────────────
+
+def run(conn, resolution: float = DEFAULT_RESOLUTION, min_cluster: int = DEFAULT_MIN_CLUSTER) -> int:
+    """Run clustering against an open DB connection. Returns cluster count."""
+    hubs        = load_hub_addresses(conn)
+    co_edges    = load_co_input_edges(conn, hubs)
+    dep_edges   = load_deposit_edges(conn)
+    wallet_meta = load_wallet_metadata(conn)
+    G           = build_graph(co_edges, dep_edges)
+    communities = detect_communities(G, resolution, min_cluster)
+    clear_existing_clusters(conn)
+    summaries   = write_clusters(conn, communities, wallet_meta, dry_run=False)
+    log.info(f"Cluster run complete: {len(summaries)} clusters written")
+    return len(summaries)
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
