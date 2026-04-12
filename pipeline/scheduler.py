@@ -234,10 +234,10 @@ def upsert_batch(parsed_txs: list[dict]) -> tuple[int, int]:
     with conn.cursor() as cur:
         psycopg2.extras.execute_batch(cur, UPSERT_WALLET, wallet_params, page_size=500)
         psycopg2.extras.execute_batch(cur, INSERT_TX,     parsed_txs,    page_size=500)
-        # Retention policy: delete transactions older than 30 days
+        # Retention policy: delete transactions older than 7 days
         cur.execute("""
             DELETE FROM transactions
-            WHERE block_time < NOW() - INTERVAL '30 days'
+            WHERE block_time < NOW() - INTERVAL '7 days'
         """)
     conn.commit()
 
