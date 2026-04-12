@@ -59,7 +59,7 @@ export default function App() {
 
   if (page === 'portal') {
     return (
-      <Layout page={page} onNav={p => setPage(p as Page)}>
+      <Layout page={page} onNav={p => setPage(p as Page)} onSignOut={() => setPage('landing')}>
         <CustomerPortal
           initialMode={resetToken ? 'reset' : 'login'}
           resetToken={resetToken}
@@ -71,7 +71,7 @@ export default function App() {
   }
 
   return (
-    <Layout page={page} onNav={p => setPage(p as Page)}>
+    <Layout page={page} onNav={p => setPage(p as Page)} onSignOut={() => setPage('landing')}>
       {page === 'overview' && <Overview />}
       {page === 'explorer' && <WalletExplorer />}
     </Layout>

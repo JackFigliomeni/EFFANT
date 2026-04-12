@@ -70,10 +70,10 @@ WASH_WINDOW_MINUTES = 10          # circular flow must complete within this wind
 WASH_MIN_ROUND_TRIPS = 1          # at least this many A→B→A cycles
 
 WASH_SEVERITY_THRESHOLDS = [
-    (0.0,   "low"),
-    (1.0,   "medium"),
-    (10.0,  "high"),
-    (100.0, "critical"),
+    (0.0,  "low"),
+    (0.1,  "medium"),
+    (1.0,  "high"),
+    (10.0, "critical"),
 ]
 
 def detect_wash_trading(conn) -> list[dict]:
@@ -144,9 +144,9 @@ def detect_wash_trading(conn) -> list[dict]:
 
 # ── Detector 2: Volume Spike ──────────────────────────────────────────────────
 
-SPIKE_MULTIPLIER   = 5.0    # peak window must be this many × the baseline rate
+SPIKE_MULTIPLIER   = 2.0    # peak window must be this many × the baseline rate
 SPIKE_WINDOW_SECS  = 3600   # rolling window for peak (1 hour)
-SPIKE_MIN_SOL      = 0.1    # ignore dust
+SPIKE_MIN_SOL      = 0.01   # ignore dust
 
 SPIKE_SEVERITY_THRESHOLDS = [
     (SPIKE_MULTIPLIER,       "medium"),
@@ -394,16 +394,16 @@ WHALE_WINDOW_HOURS = 1
 
 # Rolling-window thresholds (SOL moved within WHALE_WINDOW_HOURS)
 WHALE_HOURLY_THRESHOLDS = [
-    (1_000,   "medium"),
-    (10_000,  "high"),
-    (100_000, "critical"),
+    (10,    "medium"),
+    (100,   "high"),
+    (1_000, "critical"),
 ]
 
 # Single-transaction thresholds (catches large single moves even without history)
 WHALE_SINGLE_TX_THRESHOLDS = [
-    (100,   "medium"),
-    (500,   "high"),
-    (1_000, "critical"),
+    (5,   "medium"),
+    (50,  "high"),
+    (200, "critical"),
 ]
 
 def detect_whale_movements(conn) -> list[dict]:
@@ -516,7 +516,13 @@ def detect_whale_movements(conn) -> list[dict]:
 
 INSERT_ANOMALY = """
     INSERT INTO anomalies (wallet_address, anomaly_type, severity, detected_at, description)
-    VALUES (%(wallet_address)s, %(anomaly_type)s, %(severity)s, NOW(), %(description)s)
+    SELECT %(wallet_address)s, %(anomaly_type)s, %(severity)s, NOW(), %(description)s
+    WHERE NOT EXISTS (
+        SELECT 1 FROM anomalies
+        WHERE wallet_address = %(wallet_address)s
+          AND anomaly_type   = %(anomaly_type)s
+          AND detected_at   > NOW() - INTERVAL '10 minutes'
+    )
 """
 
 def write_anomalies(conn, anomalies: list[dict], dry_run: bool) -> int:

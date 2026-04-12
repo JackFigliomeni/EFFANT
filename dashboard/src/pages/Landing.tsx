@@ -167,7 +167,10 @@ export function Landing({ onGetStarted, onLogin, onPrivacy, onTerms }: LandingPr
       </nav>
 
       {/* Hero */}
-      <section className="text-center px-6 pt-28 pb-24 mx-auto" style={{ maxWidth: 760 }}>
+      <section
+        className="px-6 pt-28 pb-24"
+        style={{ maxWidth: 760, margin: '0 auto', textAlign: 'center', width: '100%' }}
+      >
         <div
           className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs mono mb-8"
           style={{ background: '#5b6cf810', border: '1px solid #5b6cf835', color: 'var(--accent)' }}
@@ -175,11 +178,17 @@ export function Landing({ onGetStarted, onLogin, onPrivacy, onTerms }: LandingPr
           <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent)' }} />
           Live Solana intelligence · updating every 30s
         </div>
-        <h1 className="font-bold mb-5 leading-tight" style={{ color: '#fff', fontSize: 52 }}>
+        <h1
+          className="font-bold mb-5 leading-tight"
+          style={{ color: '#fff', fontSize: 52, textAlign: 'center' }}
+        >
           Solana on-chain intelligence<br />
           <span style={{ color: 'var(--accent)' }}>for builders who ship.</span>
         </h1>
-        <p className="text-base mb-10 mx-auto" style={{ color: 'var(--muted)', maxWidth: 520, lineHeight: 1.7 }}>
+        <p
+          className="text-base mb-10"
+          style={{ color: 'var(--muted)', maxWidth: 520, lineHeight: 1.7, margin: '0 auto 40px auto', textAlign: 'center' }}
+        >
           Wallet profiling, anomaly detection, entity clustering, and whale alerts —
           all via a single REST API. From raw transactions to signal in milliseconds.
         </p>

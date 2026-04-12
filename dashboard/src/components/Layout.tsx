@@ -1,21 +1,22 @@
 import type { ReactNode } from 'react'
+import { ProfileDropdown } from './ProfileDropdown'
 
 type Page = 'landing' | 'overview' | 'explorer' | 'portal'
 
 interface LayoutProps {
-  page: Page
-  onNav: (p: Page) => void
-  children: ReactNode
+  page:      Page
+  onNav:     (p: Page) => void
+  onSignOut: () => void
+  children:  ReactNode
 }
 
-const NAV: { id: Page; label: string; noHighlight?: boolean }[] = [
-  { id: 'overview', label: 'Overview' },
+const NAV: { id: Page; label: string }[] = [
+  { id: 'overview', label: 'Overview'       },
   { id: 'explorer', label: 'Wallet Explorer' },
-  { id: 'portal',   label: 'API Portal' },
-  { id: 'portal',   label: 'Pricing', noHighlight: true },
+  { id: 'portal',   label: 'API Portal'      },
 ]
 
-export function Layout({ page, onNav, children }: LayoutProps) {
+export function Layout({ page, onNav, onSignOut, children }: LayoutProps) {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
       <header className="sticky top-0 z-20" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
@@ -33,16 +34,16 @@ export function Layout({ page, onNav, children }: LayoutProps) {
           {/* Nav */}
           <nav className="flex items-center gap-8 flex-1">
             {NAV.map(n => {
-              const isActive = !n.noHighlight && page === n.id
+              const isActive = page === n.id
               return (
                 <button
-                  key={n.label}
+                  key={n.id}
                   onClick={() => onNav(n.id)}
                   className="px-4 py-2 rounded text-xs font-medium transition-all"
                   style={{
-                    background: isActive ? 'rgba(91,108,248,0.12)' : 'transparent',
-                    color: isActive ? '#fff' : 'var(--muted)',
-                    border: isActive ? '1px solid rgba(91,108,248,0.25)' : '1px solid transparent',
+                    background:    isActive ? 'rgba(91,108,248,0.12)' : 'transparent',
+                    color:         isActive ? '#fff' : 'var(--muted)',
+                    border:        isActive ? '1px solid rgba(91,108,248,0.25)' : '1px solid transparent',
                     letterSpacing: '0.03em',
                   }}
                   onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = 'var(--text)' }}
@@ -54,10 +55,13 @@ export function Layout({ page, onNav, children }: LayoutProps) {
             })}
           </nav>
 
-          {/* Live indicator */}
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: 'var(--green)' }} />
-            <span className="mono text-xs" style={{ color: 'var(--dim)' }}>LIVE · 30s</span>
+          {/* Right side: live indicator + profile */}
+          <div className="flex items-center gap-4 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: 'var(--green)' }} />
+              <span className="mono text-xs" style={{ color: 'var(--dim)' }}>LIVE · 30s</span>
+            </div>
+            <ProfileDropdown onSignOut={onSignOut} />
           </div>
         </div>
       </header>
