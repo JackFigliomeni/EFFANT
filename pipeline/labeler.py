@@ -300,6 +300,21 @@ def update_labels(conn, results: list[tuple[str, str, str]], dry_run: bool) -> i
     return len(results)
 
 
+# ── Callable entry point (for import by scheduler) ────────────────────────────
+
+def run(conn) -> int:
+    """Label all wallets in the DB. Returns count of wallets updated."""
+    features = load_wallet_features(conn)
+    log.info(f"Classifying {len(features):,} wallets...")
+    updates: list[tuple[str, str, str]] = []
+    for address, f in features.items():
+        label, entity_type = classify(address, f)
+        updates.append((label, entity_type, address))
+    n = update_labels(conn, updates, dry_run=False)
+    log.info(f"Labeling complete: {n:,} wallets updated")
+    return n
+
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():

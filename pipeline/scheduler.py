@@ -31,6 +31,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from anomaly_detector import run as _run_anomaly_detection
 from clusterer import run as _run_clustering
+from labeler import run as _run_labeler
 
 load_dotenv()
 
@@ -345,6 +346,19 @@ def on_job_executed(event):
     pass  # success path already logged inside ingest_job
 
 
+# ── Labeling job ──────────────────────────────────────────────────────────────
+
+def label_job():
+    log.info("── Wallet labeling starting ────────────────────────────")
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        n = _run_labeler(conn)
+        conn.close()
+        log.info(f"── Wallet labeling done: {n:,} wallets ─────────────")
+    except Exception as exc:
+        log.error(f"Label job failed: {exc}")
+
+
 # ── Anomaly detection job ─────────────────────────────────────────────────────
 
 def anomaly_job():
@@ -491,6 +505,16 @@ def main():
         coalesce=True,            # merge missed fires into one
     )
     scheduler.add_job(
+        label_job,
+        trigger="interval",
+        minutes=30,
+        id="labeling",
+        name="Wallet labeling",
+        max_instances=1,
+        misfire_grace_time=120,
+        coalesce=True,
+    )
+    scheduler.add_job(
         anomaly_job,
         trigger="interval",
         minutes=10,
@@ -524,6 +548,7 @@ def main():
     # Run once immediately at startup
     log.info("Running initial jobs immediately...")
     ingest_job(batch_size=args.batch, max_retries=args.max_retries)
+    label_job()
     anomaly_job()
     cluster_job()
 
