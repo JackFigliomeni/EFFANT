@@ -550,7 +550,7 @@ def main():
     scheduler.add_job(
         cluster_job,
         trigger="interval",
-        minutes=60,
+        minutes=15,
         id="clustering",
         name="Entity clustering",
         max_instances=1,
