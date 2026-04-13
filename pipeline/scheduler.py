@@ -499,7 +499,7 @@ def send_daily_digest():
 
 def main():
     parser = argparse.ArgumentParser(description="EFFANT scheduled ingestion")
-    parser.add_argument("--interval",    type=int,   default=30,  help="Run interval in seconds (default 30)")
+    parser.add_argument("--interval",    type=int,   default=120, help="Run interval in seconds (default 120)")
     parser.add_argument("--batch",       type=int,   default=200, help="Max transactions per run (default 200)")
     parser.add_argument("--max-retries", type=int,   default=3,   help="DB write retries per run (default 3)")
     args = parser.parse_args()
