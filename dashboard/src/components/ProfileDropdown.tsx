@@ -72,7 +72,6 @@ export function ProfileDropdown({ onSignOut }: { onSignOut: () => void }) {
 
   const email   = me?.email ?? ''
   const initial = email[0]?.toUpperCase() ?? '?'
-  const hasSub  = sub?.has_subscription && ['active', 'canceling'].includes(sub?.status ?? '')
   const isCanceling = sub?.status === 'canceling'
 
   function copyCode(code: string) {
