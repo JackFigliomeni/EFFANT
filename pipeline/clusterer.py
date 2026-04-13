@@ -60,6 +60,11 @@ DEFAULT_RESOLUTION = 1.0
 
 # ── Data loading ──────────────────────────────────────────────────────────────
 
+# Only cluster on recent transactions to bound memory usage.
+# Full-history clustering would require too much RAM for the graph.
+CLUSTER_WINDOW_HOURS = 48
+
+
 def load_hub_addresses(conn) -> set[str]:
     """Destinations receiving from more than HUB_MAX_SENDERS unique wallets."""
     with conn.cursor() as cur:
@@ -67,9 +72,10 @@ def load_hub_addresses(conn) -> set[str]:
             SELECT to_wallet
             FROM transactions
             WHERE success = true
+              AND block_time > NOW() - INTERVAL '%s hours'
             GROUP BY to_wallet
             HAVING COUNT(DISTINCT from_wallet) > %s
-        """, (HUB_MAX_SENDERS,))
+        """, (CLUSTER_WINDOW_HOURS, HUB_MAX_SENDERS))
         hubs = {row[0] for row in cur.fetchall()}
     log.info(f"Identified {len(hubs)} hub addresses (excluded from co-input)")
     return hubs
@@ -82,17 +88,18 @@ def load_co_input_edges(conn, hubs: set[str]) -> dict[tuple[str, str], float]:
     to the edge between every pair in that group.
     Pairs are enumerated in Python to avoid a large SQL self-join.
     """
-    # Load all (block_time, to_wallet) → [from_wallets] groups
+    # Load groups from recent window only to keep graph in memory
     with conn.cursor() as cur:
         cur.execute("""
             SELECT block_time, to_wallet, ARRAY_AGG(DISTINCT from_wallet) AS senders
             FROM transactions
             WHERE success = true
               AND to_wallet != from_wallet
+              AND block_time > NOW() - INTERVAL '%s hours'
             GROUP BY block_time, to_wallet
             HAVING COUNT(DISTINCT from_wallet) >= 2
             ORDER BY block_time, to_wallet
-        """)
+        """, (CLUSTER_WINDOW_HOURS,))
         rows = cur.fetchall()
 
     edge_weights: dict[tuple[str, str], float] = defaultdict(float)
@@ -127,10 +134,11 @@ def load_deposit_edges(conn) -> dict[tuple[str, str], float]:
             SELECT from_wallet, to_wallet, COUNT(*) AS repeat_count
             FROM transactions
             WHERE success = true
+              AND block_time > NOW() - INTERVAL '%s hours'
               AND from_wallet != to_wallet
             GROUP BY from_wallet, to_wallet
             HAVING COUNT(*) >= %s
-        """, (DEPOSIT_MIN_REPEAT,))
+        """, (CLUSTER_WINDOW_HOURS, DEPOSIT_MIN_REPEAT))
         rows = cur.fetchall()
 
     edge_weights: dict[tuple[str, str], float] = defaultdict(float)
