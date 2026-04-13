@@ -114,7 +114,6 @@ export function BillingPanel({ authed }: { authed: boolean }) {
   const qc = useQueryClient()
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
   const [cancelConfirm, setCancelConfirm] = useState(false)
-  const [msg, setMsg] = useState('')
 
   const { data: sub, isLoading } = useQuery<Subscription>({
     queryKey: ['billing-sub'],
@@ -125,12 +124,10 @@ export function BillingPanel({ authed }: { authed: boolean }) {
 
   const cancelMut = useMutation({
     mutationFn: cancelSubscription,
-    onSuccess: (data) => {
-      setMsg(data.message)
+    onSuccess: () => {
       setCancelConfirm(false)
       qc.invalidateQueries({ queryKey: ['billing-sub'] })
     },
-    onError: (err) => setMsg((err as Error).message),
   })
 
   async function handleCheckout(tier: 'starter' | 'pro') {
@@ -138,8 +135,7 @@ export function BillingPanel({ authed }: { authed: boolean }) {
     try {
       const { url } = await createCheckoutSession(tier)
       window.location.href = url
-    } catch (err) {
-      setMsg((err as Error).message)
+    } catch {
       setCheckoutLoading(null)
     }
   }
@@ -151,9 +147,6 @@ export function BillingPanel({ authed }: { authed: boolean }) {
       <div className="px-5 py-3.5" style={{ borderBottom: '1px solid var(--border)' }}>
         <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#fff' }}>
           Subscription
-        </span>
-        <span className="ml-3 text-xs" style={{ color: 'var(--muted)' }}>
-          Stripe test mode
         </span>
       </div>
 
@@ -205,20 +198,9 @@ export function BillingPanel({ authed }: { authed: boolean }) {
           </div>
         )}
 
-        {msg && (
-          <p className="mono text-xs" style={{ color: 'var(--yellow)' }}>{msg}</p>
-        )}
-
         {/* Plan cards — only shown when user has no active subscription */}
         {!sub?.has_subscription || !['active', 'canceling'].includes(sub?.status ?? '') ? (
           <>
-            <div className="rounded px-3 py-2.5 text-xs"
-              style={{ background: '#eab30810', border: '1px solid #eab30830', color: '#eab308' }}>
-              <span className="mono font-semibold">TEST MODE</span>
-              <span className="ml-2" style={{ color: 'var(--muted)' }}>
-                Use card <span className="mono">4242 4242 4242 4242</span>, any expiry, any CVC.
-              </span>
-            </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {PLANS.map(plan => (
                 <PlanCard
