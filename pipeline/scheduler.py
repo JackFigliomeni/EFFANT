@@ -385,6 +385,29 @@ def cluster_job():
         log.error(f"Cluster job failed: {exc}")
 
 
+# ── Vacuum job ───────────────────────────────────────────────────────────────
+
+def vacuum_job():
+    """
+    VACUUM ANALYZE all data tables to reclaim dead tuple space.
+    Required because DELETE leaves dead rows — Postgres won't free disk space
+    until VACUUM runs. Without this, heavy DELETE churn fills the volume.
+    """
+    log.info("── VACUUM ANALYZE starting ─────────────────────────────")
+    tables = ["transactions", "wallets", "anomalies", "clusters"]
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        conn.autocommit = True  # VACUUM must run outside a transaction block
+        with conn.cursor() as cur:
+            for table in tables:
+                log.info(f"   VACUUM ANALYZE {table}...")
+                cur.execute(f"VACUUM ANALYZE {table}")
+        conn.close()
+        log.info("── VACUUM ANALYZE done ─────────────────────────────")
+    except Exception as exc:
+        log.error(f"Vacuum job failed: {exc}")
+
+
 # ── Daily email digest ────────────────────────────────────────────────────────
 
 SENDGRID_API_KEY   = os.getenv("SENDGRID_API_KEY")
@@ -540,6 +563,15 @@ def main():
         trigger=CronTrigger(hour=8, minute=0, timezone="UTC"),
         id="daily_digest",
         name="Daily email digest",
+        max_instances=1,
+    )
+    # Weekly VACUUM ANALYZE on all data tables — Sunday 03:00 UTC
+    # Reclaims dead tuple space from deletes/updates to prevent volume bloat.
+    scheduler.add_job(
+        vacuum_job,
+        trigger=CronTrigger(day_of_week="sun", hour=3, minute=0, timezone="UTC"),
+        id="vacuum",
+        name="Weekly VACUUM ANALYZE",
         max_instances=1,
     )
     scheduler.add_listener(on_job_error,    EVENT_JOB_ERROR)
