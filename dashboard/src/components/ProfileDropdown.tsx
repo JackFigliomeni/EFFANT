@@ -144,7 +144,7 @@ export function ProfileDropdown({ onSignOut }: { onSignOut: () => void }) {
                 <span>📖</span> Installation Guide
               </button>
 
-              {hasSub && !isCanceling && (
+              {!isCanceling && (
                 <button
                   onClick={() => { setCancelConfirm(true); setOpen(false) }}
                   className="w-full text-left px-2 py-2 rounded text-xs flex items-center gap-2 transition-all"
