@@ -15,4 +15,4 @@ RUN mkdir -p /app/logs
 
 # Migrate (idempotent) then run the scheduler
 CMD python scripts/migrate.py && \
-    python pipeline/scheduler.py --interval 120 --batch 200
+    python pipeline/scheduler.py --interval 300 --batch 25
