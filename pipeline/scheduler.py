@@ -141,7 +141,7 @@ def get_block(slot: int) -> dict | None:
             slot,
             {
                 "encoding": "json",
-                "transactionDetails": "full",
+                "transactionDetails": "accounts",  # ~80% smaller — we only need accounts + balances
                 "maxSupportedTransactionVersion": 0,
                 "rewards": False,
                 "commitment": "finalized",
