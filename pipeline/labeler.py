@@ -303,14 +303,107 @@ def update_labels(conn, results: list[tuple[str, str, str]], dry_run: bool) -> i
 # ── Callable entry point (for import by scheduler) ────────────────────────────
 
 def run(conn) -> int:
-    """Label all wallets in the DB. Returns count of wallets updated."""
-    features = load_wallet_features(conn)
-    log.info(f"Classifying {len(features):,} wallets...")
-    updates: list[tuple[str, str, str]] = []
-    for address, f in features.items():
-        label, entity_type = classify(address, f)
-        updates.append((label, entity_type, address))
-    n = update_labels(conn, updates, dry_run=False)
+    """
+    Label all wallets using a single SQL UPDATE + CTE.
+    No wallet data is loaded into Python — everything stays in Postgres.
+    """
+    t = THRESHOLDS
+
+    # Build known-address CASE arms
+    known_label_cases  = "\n            ".join(
+        f"WHEN w.address = '{addr}' THEN '{lbl}'"
+        for addr, (lbl, _) in KNOWN_ADDRESSES.items()
+    )
+    known_etype_cases  = "\n            ".join(
+        f"WHEN w.address = '{addr}' THEN '{et}'"
+        for addr, (_, et) in KNOWN_ADDRESSES.items()
+    )
+
+    defi_ids = "','".join(DEFI_PROGRAM_IDS)
+    mev_ids  = "','".join(MEV_PROGRAM_IDS)
+
+    sql = f"""
+    WITH
+    defi_counts AS (
+        SELECT from_wallet, COUNT(*) AS defi_txs
+        FROM transactions
+        WHERE success = true AND program_id IN ('{defi_ids}')
+        GROUP BY from_wallet
+    ),
+    jito_counts AS (
+        SELECT from_wallet, COUNT(*) AS jito_txs
+        FROM transactions
+        WHERE success = true AND program_id IN ('{mev_ids}')
+        GROUP BY from_wallet
+    ),
+    counterparty_counts AS (
+        SELECT from_wallet, COUNT(DISTINCT to_wallet) AS uniq
+        FROM transactions WHERE success = true
+        GROUP BY from_wallet
+    ),
+    circular_counts AS (
+        SELECT t1.from_wallet, COUNT(*) AS pairs
+        FROM transactions t1
+        JOIN transactions t2
+          ON t1.from_wallet = t2.to_wallet
+         AND t1.to_wallet   = t2.from_wallet
+         AND t1.block_time  > NOW() - INTERVAL '48 hours'
+        WHERE t1.success = true
+        GROUP BY t1.from_wallet
+        HAVING COUNT(*) >= {t['wash_min_pairs']}
+    ),
+    features AS (
+        SELECT
+            w.address,
+            w.tx_count,
+            w.total_volume_sol,
+            CASE WHEN EXTRACT(EPOCH FROM (w.last_seen - w.first_seen)) > 0
+                 THEN w.tx_count::float / EXTRACT(EPOCH FROM (w.last_seen - w.first_seen))
+                 ELSE w.tx_count::float END              AS txs_per_sec,
+            COALESCE(dc.defi_txs,  0)                   AS defi_txs,
+            COALESCE(jc.jito_txs,  0)                   AS jito_txs,
+            COALESCE(cc.uniq,      0)                   AS unique_counterparties,
+            COALESCE(circ.pairs,   0)                   AS circular_pairs
+        FROM wallets w
+        LEFT JOIN defi_counts        dc   ON dc.from_wallet  = w.address
+        LEFT JOIN jito_counts        jc   ON jc.from_wallet  = w.address
+        LEFT JOIN counterparty_counts cc  ON cc.from_wallet  = w.address
+        LEFT JOIN circular_counts    circ ON circ.from_wallet = w.address
+    )
+    UPDATE wallets
+    SET
+        label = CASE
+            {known_label_cases}
+            WHEN f.txs_per_sec >= {t['mev_txs_per_sec']}
+              OR f.jito_txs    >= {t['mev_jito_min_txs']}       THEN 'mev_bot'
+            WHEN f.circular_pairs >= {t['wash_min_pairs']}      THEN 'wash_bot'
+            WHEN f.defi_txs       >= {t['defi_min_txs']}        THEN 'defi_user'
+            WHEN f.unique_counterparties >= {t['exchange_min_counterparties']}
+             AND f.total_volume_sol      >= {t['exchange_min_volume_sol']}  THEN 'exchange_hot_wallet'
+            WHEN f.total_volume_sol >= {t['whale_min_volume_sol']}
+             AND f.tx_count        <= {t['whale_max_tx_count']}  THEN 'whale'
+            ELSE 'unknown'
+        END,
+        entity_type = CASE
+            {known_etype_cases}
+            WHEN f.txs_per_sec >= {t['mev_txs_per_sec']}
+              OR f.jito_txs    >= {t['mev_jito_min_txs']}       THEN 'mev_bot'
+            WHEN f.circular_pairs >= {t['wash_min_pairs']}      THEN 'wash_bot'
+            WHEN f.defi_txs       >= {t['defi_min_txs']}        THEN 'defi_protocol'
+            WHEN f.unique_counterparties >= {t['exchange_min_counterparties']}
+             AND f.total_volume_sol      >= {t['exchange_min_volume_sol']}  THEN 'exchange'
+            WHEN f.total_volume_sol >= {t['whale_min_volume_sol']}
+             AND f.tx_count        <= {t['whale_max_tx_count']}  THEN 'whale'
+            ELSE 'unknown'
+        END
+    FROM features f
+    WHERE wallets.address = f.address
+    """
+
+    with conn.cursor() as cur:
+        cur.execute(sql)
+        n = cur.rowcount
+    conn.commit()
     log.info(f"Labeling complete: {n:,} wallets updated")
     return n
 
