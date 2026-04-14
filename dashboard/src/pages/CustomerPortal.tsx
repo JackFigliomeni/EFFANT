@@ -8,6 +8,7 @@ import {
 } from '../api/portal'
 import type { MeData, Webhook } from '../api/portal'
 import { BillingPanel } from '../components/BillingPanel'
+import { ApiTerminal } from '../components/ApiTerminal'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -451,127 +452,6 @@ function WebhooksPanel() {
   )
 }
 
-// ── Docs ──────────────────────────────────────────────────────────────────────
-
-const ENDPOINTS = [
-  {
-    method: 'GET', path: '/v1/health', ttl: '10s', desc: 'Full system status — DB, Redis, pipeline health, and entity counts.',
-    params: [],
-    curl: `curl -H "X-API-Key: YOUR_KEY" https://api.effant.tech/v1/health`,
-  },
-  {
-    method: 'GET', path: '/v1/anomalies', ttl: '30s', desc: 'Paginated anomaly feed. Filter by severity or type.',
-    params: ['severity: critical | high | medium | low', 'anomaly_type: sandwich_attack | wash_trading | whale_movement | volume_spike', 'limit: 1–500 (default 100)', 'offset: pagination offset'],
-    curl: `curl -H "X-API-Key: YOUR_KEY" "https://api.effant.tech/v1/anomalies?severity=critical&limit=50"`,
-  },
-  {
-    method: 'GET', path: '/v1/clusters', ttl: '5min', desc: 'Entity clusters detected via Louvain community detection.',
-    params: ['min_wallets: minimum cluster size (default 2)', 'dominant_type: filter by entity type', 'limit: 1–500', 'offset: pagination'],
-    curl: `curl -H "X-API-Key: YOUR_KEY" "https://api.effant.tech/v1/clusters?min_wallets=3&limit=50"`,
-  },
-  {
-    method: 'GET', path: '/v1/wallet/{address}', ttl: '60s', desc: 'Full wallet profile: label, risk score, volume, cluster, anomaly count.',
-    params: ['address: base58 Solana wallet address'],
-    curl: `curl -H "X-API-Key: YOUR_KEY" https://api.effant.tech/v1/wallet/6AvA8pyr22Ta8iEjJnpYmLhLJuNSpxCa8MdxPqfyzaix`,
-  },
-  {
-    method: 'GET', path: '/v1/wallet/{address}/transactions', ttl: '60s', desc: 'Enriched transaction history for a wallet.',
-    params: ['address: base58 Solana wallet address', 'limit: 1–200 (default 50)'],
-    curl: `curl -H "X-API-Key: YOUR_KEY" "https://api.effant.tech/v1/wallet/6AvA8pyr22Ta8iEjJnpYmLhLJuNSpxCa8MdxPqfyzaix/transactions?limit=20"`,
-  },
-  {
-    method: 'GET', path: '/v1/flows', ttl: '30s', desc: 'Large fund movements above a SOL threshold.',
-    params: ['min_sol: minimum transfer size in SOL (default 10000)', 'limit: 1–500'],
-    curl: `curl -H "X-API-Key: YOUR_KEY" "https://api.effant.tech/v1/flows?min_sol=100&limit=50"`,
-  },
-]
-
-function Docs({ apiKey }: { apiKey: string | null }) {
-  const [open, setOpen] = useState<string | null>(null)
-  const [copiedIdx, setCopiedIdx] = useState<number | null>(null)
-
-  function copyCurl(curl: string, i: number) {
-    const filled = apiKey ? curl.replace('YOUR_KEY', apiKey) : curl
-    navigator.clipboard.writeText(filled)
-    setCopiedIdx(i)
-    setTimeout(() => setCopiedIdx(null), 2000)
-  }
-
-  return (
-    <Section title="API Reference" sub="All endpoints · authentication via X-API-Key header">
-      <div className="space-y-2">
-        <div className="rounded px-4 py-3 mb-4 text-xs"
-          style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--muted)' }}>
-          All requests require <span className="mono text-xs" style={{ color: 'var(--text)' }}>X-API-Key: YOUR_KEY</span> header.
-          Response format: <span className="mono" style={{ color: 'var(--text)' }}>{`{"data": ..., "meta": {"count": N, "generated_at": "..."}}`}</span>
-        </div>
-
-        {ENDPOINTS.map((ep, i) => (
-          <div key={ep.path} className="rounded overflow-hidden"
-            style={{ border: '1px solid var(--border)' }}>
-            <button className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.02]"
-              onClick={() => setOpen(open === ep.path ? null : ep.path)}>
-              <span className="mono text-xs font-bold px-1.5 py-0.5 rounded"
-                style={{ background: '#5b6cf818', color: 'var(--accent)', border: '1px solid #5b6cf840' }}>
-                {ep.method}
-              </span>
-              <span className="mono text-sm font-semibold" style={{ color: '#fff' }}>{ep.path}</span>
-              <span className="mono text-xs px-1.5 py-0.5 rounded ml-auto shrink-0"
-                style={{ background: 'var(--surface2)', color: 'var(--dim)' }}>
-                cache {ep.ttl}
-              </span>
-              <span className="text-xs ml-2" style={{ color: 'var(--dim)' }}>
-                {open === ep.path ? '▲' : '▼'}
-              </span>
-            </button>
-
-            {open === ep.path && (
-              <div className="px-4 pb-4 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
-                <p className="text-sm pt-3" style={{ color: 'var(--muted)' }}>{ep.desc}</p>
-
-                {ep.params.length > 0 && (
-                  <div>
-                    <p className="mono text-xs uppercase tracking-widest mb-2" style={{ color: 'var(--dim)' }}>
-                      Parameters
-                    </p>
-                    <div className="space-y-1">
-                      {ep.params.map(p => (
-                        <div key={p} className="flex gap-2">
-                          <span className="mono text-xs" style={{ color: 'var(--text)' }}>
-                            {p.split(':')[0]}:
-                          </span>
-                          <span className="text-xs" style={{ color: 'var(--muted)' }}>
-                            {p.split(':').slice(1).join(':').trim()}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <p className="mono text-xs uppercase tracking-widest" style={{ color: 'var(--dim)' }}>Example</p>
-                    <button onClick={() => copyCurl(ep.curl, i)}
-                      className="mono text-xs transition-all"
-                      style={{ color: copiedIdx === i ? '#22c55e' : 'var(--muted)' }}>
-                      {copiedIdx === i ? '✓ Copied' : 'Copy'}
-                    </button>
-                  </div>
-                  <pre className="rounded px-3 py-2.5 overflow-x-auto mono text-xs leading-relaxed"
-                    style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: '#94a3b8' }}>
-                    {apiKey ? ep.curl.replace('YOUR_KEY', apiKey.slice(0, 16) + '…') : ep.curl}
-                  </pre>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </Section>
-  )
-}
-
 // ── Auth form (login / signup / forgot / reset) ───────────────────────────────
 
 type AuthMode = 'login' | 'signup' | 'forgot' | 'reset'
@@ -850,7 +730,7 @@ export function CustomerPortal({
           <BillingPanel authed={authed} />
           {isPro && <WebhooksPanel />}
           <CallLog />
-          <Docs apiKey={apiKey ?? null} />
+          <ApiTerminal apiKey={apiKey ?? null} tier={me.api_key?.tier ?? 'starter'} />
         </>
       ) : (
         <div className="rounded px-5 py-8 text-center text-sm"
