@@ -563,6 +563,144 @@ async def public_clusters(limit: int = Query(20, ge=1, le=50)) -> dict:
     return ok(result["clusters"], total=result["total"], limit=limit, offset=0)
 
 
+# ── GET /public/clusters/{cluster_id}/analysis  (Pro paywall on frontend) ────
+
+_PROGRAM_LABELS: dict[str, str] = {
+    "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4": "Jupiter v6",
+    "JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB": "Jupiter v4",
+    "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8": "Raydium AMM",
+    "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK": "Raydium CLMM",
+    "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3sFjJ6a":  "Orca Whirlpool",
+    "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP": "Orca",
+    "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin": "Serum DEX",
+    "srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX":  "OpenBook",
+    "MarBmsSgKXdrN1egZf5sqe1TMai9K1rChYNDJgjq7aD":  "Marinade",
+    "T1pyyaTNZsKv2WcRAB8oVnk93mLJw2XzjtVYqCsaHqt":  "Jito",
+    "11111111111111111111111111111111":               "System Program",
+    "Vote111111111111111111111111111111111111111":    "Vote Program",
+    "ComputeBudget111111111111111111111111111111":    "Compute Budget",
+    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA":  "SPL Token",
+}
+
+
+def _fetch_cluster_analysis(cluster_id: int) -> dict | None:
+    cluster = query_one(
+        "SELECT id, wallet_count, total_volume, dominant_type FROM clusters WHERE id = %s",
+        (cluster_id,),
+    )
+    if not cluster:
+        return None
+
+    # 5-minute bucket timeline — DISTINCT on signature prevents double-counting
+    # when both from_wallet and to_wallet belong to the cluster.
+    timeline_rows = query("""
+        WITH cluster_wallet_ids AS (
+            SELECT address FROM wallets WHERE cluster_id = %s
+        ),
+        cluster_txs AS (
+            SELECT DISTINCT t.signature, t.block_time, t.amount_sol, t.program_id
+            FROM transactions t
+            WHERE t.success = true
+              AND t.block_time IS NOT NULL
+              AND (
+                  t.from_wallet IN (SELECT address FROM cluster_wallet_ids)
+               OR t.to_wallet   IN (SELECT address FROM cluster_wallet_ids)
+              )
+        )
+        SELECT
+            date_trunc('hour', block_time)
+                + (FLOOR(EXTRACT(MINUTE FROM block_time) / 5)::int
+                   * INTERVAL '5 minutes')         AS bucket,
+            COUNT(*)::int                           AS tx_count,
+            ROUND(SUM(amount_sol)::numeric, 2)      AS volume_sol
+        FROM cluster_txs
+        GROUP BY bucket
+        ORDER BY bucket
+    """, (cluster_id,))
+
+    # Top programs used by this cluster
+    program_rows = query("""
+        WITH cluster_wallet_ids AS (
+            SELECT address FROM wallets WHERE cluster_id = %s
+        ),
+        cluster_txs AS (
+            SELECT DISTINCT t.signature, t.program_id
+            FROM transactions t
+            WHERE t.success = true
+              AND t.program_id IS NOT NULL
+              AND (
+                  t.from_wallet IN (SELECT address FROM cluster_wallet_ids)
+               OR t.to_wallet   IN (SELECT address FROM cluster_wallet_ids)
+              )
+        )
+        SELECT program_id, COUNT(*) AS cnt
+        FROM cluster_txs
+        GROUP BY program_id
+        ORDER BY cnt DESC
+        LIMIT 6
+    """, (cluster_id,))
+
+    timeline = [
+        {
+            "bucket":     _fmt_ts(r["bucket"]),
+            "tx_count":   int(r["tx_count"]),
+            "volume_sol": float(r["volume_sol"]),
+        }
+        for r in timeline_rows
+    ]
+
+    first_tx = timeline[0]["bucket"]  if timeline else None
+    last_tx  = timeline[-1]["bucket"] if timeline else None
+
+    duration_minutes: float | None = None
+    if first_tx and last_tx and first_tx != last_tx:
+        from datetime import datetime as _dt
+        t0 = _dt.fromisoformat(first_tx.replace("Z", "+00:00"))
+        t1 = _dt.fromisoformat(last_tx.replace("Z", "+00:00"))
+        duration_minutes = round((t1 - t0).total_seconds() / 60, 1)
+
+    peak = max(timeline, key=lambda x: x["volume_sol"]) if timeline else None
+
+    total_tx_count = sum(b["tx_count"] for b in timeline)
+    top_programs = [
+        {
+            "program_id": r["program_id"],
+            "count":      int(r["cnt"]),
+            "label":      _PROGRAM_LABELS.get(r["program_id"],
+                                               r["program_id"][:16] + "…"),
+            "pct": round(int(r["cnt"]) / total_tx_count * 100, 1) if total_tx_count else 0,
+        }
+        for r in program_rows
+    ]
+
+    return {
+        "cluster_id":       cluster_id,
+        "wallet_count":     cluster["wallet_count"],
+        "total_volume":     _float(cluster["total_volume"]),
+        "dominant_type":    cluster["dominant_type"],
+        "first_tx":         first_tx,
+        "last_tx":          last_tx,
+        "duration_minutes": duration_minutes,
+        "timeline":         timeline,
+        "top_programs":     top_programs,
+        "peak_bucket":      peak,
+    }
+
+
+@app.get("/public/clusters/{cluster_id}/analysis", tags=["public"])
+@cache(expire=300, key_builder=_cache_key)
+async def cluster_analysis(cluster_id: int) -> dict:
+    """
+    Cluster market-impact analysis — transaction timeline + top protocols.
+    Data is public; Pro paywall is enforced on the frontend.
+    Cached 5 minutes.
+    """
+    result = await run_in_threadpool(_fetch_cluster_analysis, cluster_id)
+    if result is None:
+        raise HTTPException(404, detail=f"Cluster {cluster_id} not found")
+    return ok(result)
+
+
 # ── GET /v1/flows ─────────────────────────────────────────────────────────────
 
 def _fetch_flows(min_sol: float, limit: int) -> list[dict]:

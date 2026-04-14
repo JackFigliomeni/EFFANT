@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchPublicClusters } from '../api/client'
+import { ClusterAnalysisModal } from './ClusterAnalysisModal'
 import type { Cluster, ApiResponse } from '../api/client'
 
 const TYPE_COLOR: Record<string, string> = {
@@ -18,12 +20,27 @@ function fmtVol(n: number) {
   return n.toFixed(1)
 }
 
-function ClusterRow({ c, maxVol }: { c: Cluster; maxVol: number }) {
+function ClusterRow({
+  c,
+  maxVol,
+  onClick,
+}: {
+  c: Cluster
+  maxVol: number
+  onClick: () => void
+}) {
   const color = TYPE_COLOR[c.dominant_type ?? 'unknown'] ?? TYPE_COLOR.unknown
   const pct   = maxVol > 0 ? Math.min((c.total_volume / maxVol) * 100, 100) : 0
 
   return (
-    <div className="py-2.5" style={{ borderBottom: '1px solid var(--border)' }}>
+    <div
+      className="py-2.5 cursor-pointer transition-all"
+      style={{ borderBottom: '1px solid var(--border)' }}
+      onClick={onClick}
+      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(91,108,248,0.04)')}
+      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+      title="Click to view market impact analysis"
+    >
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
           <span className="mono text-xs font-semibold" style={{ color }}>
@@ -38,6 +55,8 @@ function ClusterRow({ c, maxVol }: { c: Cluster; maxVol: number }) {
           <span className="mono text-xs font-semibold" style={{ color: '#fff' }}>
             {fmtVol(c.total_volume)} SOL
           </span>
+          {/* Analysis indicator */}
+          <span className="mono text-xs" style={{ color: 'var(--dim)', fontSize: 9 }}>↗</span>
         </div>
       </div>
 
@@ -75,6 +94,8 @@ function RowSkeleton() {
 }
 
 export function ClusterPanel() {
+  const [selected, setSelected] = useState<Cluster | null>(null)
+
   const { data, isLoading, isError, dataUpdatedAt } = useQuery<ApiResponse<Cluster[]>>({
     queryKey: ['clusters'],
     queryFn: () => fetchPublicClusters(20),
@@ -84,45 +105,63 @@ export function ClusterPanel() {
   const maxVol = data ? Math.max(...data.data.map(c => c.total_volume), 1) : 1
 
   return (
-    <div className="flex flex-col rounded overflow-hidden"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)', minHeight: 480 }}>
+    <>
+      <div className="flex flex-col rounded overflow-hidden"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)', minHeight: 480 }}>
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3"
-        style={{ borderBottom: '1px solid var(--border)' }}>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#fff' }}>
-            Entity Clusters
-          </span>
-          {data && (
-            <span className="mono text-xs px-1.5 py-0.5 rounded"
-              style={{ background: 'var(--border2)', color: 'var(--muted)' }}>
-              {data.meta.total ?? data.meta.count}
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3"
+          style={{ borderBottom: '1px solid var(--border)' }}>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#fff' }}>
+              Entity Clusters
             </span>
-          )}
+            {data && (
+              <span className="mono text-xs px-1.5 py-0.5 rounded"
+                style={{ background: 'var(--border2)', color: 'var(--muted)' }}>
+                {data.meta.total ?? data.meta.count}
+              </span>
+            )}
+          </div>
+          <span className="mono text-xs" style={{ color: 'var(--dim)' }}>
+            {dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString('en-US', { hour12: false }) : '—'}
+          </span>
         </div>
-        <span className="mono text-xs" style={{ color: 'var(--dim)' }}>
-          {dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString('en-US', { hour12: false }) : '—'}
-        </span>
-      </div>
 
-      {/* Rows */}
-      <div className="flex-1 overflow-y-auto px-4">
-        {isLoading && Array.from({ length: 8 }).map((_, i) => <RowSkeleton key={i} />)}
-        {isError && (
-          <div className="py-8 text-center text-xs" style={{ color: 'var(--red)' }}>
-            Failed to load cluster data
+        {/* Rows */}
+        <div className="flex-1 overflow-y-auto px-4">
+          {isLoading && Array.from({ length: 8 }).map((_, i) => <RowSkeleton key={i} />)}
+          {isError && (
+            <div className="py-8 text-center text-xs" style={{ color: 'var(--red)' }}>
+              Failed to load cluster data
+            </div>
+          )}
+          {data?.data.map(c => (
+            <ClusterRow
+              key={c.id}
+              c={c}
+              maxVol={maxVol}
+              onClick={() => setSelected(c)}
+            />
+          ))}
+        </div>
+
+        {/* Footer */}
+        {data && (
+          <div className="px-4 py-2 text-xs mono"
+            style={{ borderTop: '1px solid var(--border)', color: 'var(--dim)' }}>
+            Showing {data.data.length} of {data.meta.total ?? data.meta.count} · Louvain · click row to analyse
           </div>
         )}
-        {data?.data.map(c => <ClusterRow key={c.id} c={c} maxVol={maxVol} />)}
       </div>
 
-      {/* Footer */}
-      {data && (
-        <div className="px-4 py-2 text-xs mono" style={{ borderTop: '1px solid var(--border)', color: 'var(--dim)' }}>
-          Showing {data.data.length} of {data.meta.total ?? data.meta.count} · Louvain algorithm
-        </div>
+      {/* Analysis modal */}
+      {selected && (
+        <ClusterAnalysisModal
+          cluster={selected}
+          onClose={() => setSelected(null)}
+        />
       )}
-    </div>
+    </>
   )
 }

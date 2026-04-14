@@ -154,3 +154,26 @@ export const fetchWalletAnomalies = (address: string) =>
       ...r,
       data: r.data.filter(a => a.wallet_address === address),
     }))
+
+// /public/clusters/{id}/analysis
+export interface ClusterAnalysisBucket {
+  bucket: string       // ISO timestamp (5-min bucket)
+  tx_count: number
+  volume_sol: number
+}
+
+export interface ClusterAnalysis {
+  cluster_id: number
+  wallet_count: number
+  total_volume: number
+  dominant_type: string | null
+  first_tx: string | null
+  last_tx: string | null
+  duration_minutes: number | null
+  timeline: ClusterAnalysisBucket[]
+  top_programs: { program_id: string; count: number; label: string; pct: number }[]
+  peak_bucket: ClusterAnalysisBucket | null
+}
+
+export const fetchClusterAnalysis = (cluster_id: number) =>
+  getPublic<ApiResponse<ClusterAnalysis>>(`/public/clusters/${cluster_id}/analysis`)
