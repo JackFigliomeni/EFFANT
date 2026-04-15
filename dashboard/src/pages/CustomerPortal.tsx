@@ -703,32 +703,34 @@ interface EndpointDoc {
   response: string
 }
 
+const API_BASE = 'https://effant-production.up.railway.app'
+
 const ENDPOINTS: EndpointDoc[] = [
   {
     method: 'GET',
     path: '/v1/wallet/{address}',
     auth: 'required',
-    desc: 'Full profile for a Solana wallet — risk score, entity type, cluster membership, volume stats, and anomaly count.',
+    desc: 'Full profile for a Solana wallet — risk score, entity type, cluster membership, 24h volume, and anomaly count.',
     params: [
       { name: 'address', type: 'path', required: true, desc: 'Base58 wallet address' },
     ],
-    example: `curl -H "X-API-Key: YOUR_KEY" \\
-  https://api.effant.io/v1/wallet/7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs`,
+    example: `curl -H "X-API-Key: eff_sk_your_key" \\
+  ${API_BASE}/v1/wallet/UYtvWaiiXudbBTN9tvCqJcgnALSKWP9rf6N8iQa673V`,
     response: `{
   "data": {
-    "address": "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs",
-    "label": "Binance Hot Wallet",
-    "entity_type": "exchange",
-    "risk_score": 0.12,
-    "tx_count": 48291,
-    "total_volume_sol": 2847193.4,
-    "volume_24h_sol": 91234.8,
-    "first_seen": "2024-01-15T08:22:00Z",
-    "last_seen": "2024-06-10T14:05:31Z",
-    "anomaly_count": 3,
-    "cluster": { "id": 12, "name": "CEX Cluster A", "wallet_count": 47 }
+    "address": "UYtvWaiiXudbBTN9tvCqJcgnALSKWP9rf6N8iQa673V",
+    "label": "wash_bot",
+    "entity_type": "bot",
+    "risk_score": 0.97,
+    "tx_count": 8241,
+    "total_volume_sol": 144820.3,
+    "volume_24h_sol": 9812.4,
+    "first_seen": "2026-04-12T15:40:00Z",
+    "last_seen": "2026-04-15T05:22:46Z",
+    "anomaly_count": 312,
+    "cluster": { "id": 617, "name": "unknown_cluster_617", "wallet_count": 130 }
   },
-  "meta": { "generated_at": "2024-06-10T14:06:00Z" }
+  "meta": { "generated_at": "2026-04-15T11:02:03Z" }
 }`,
   },
   {
@@ -741,24 +743,24 @@ const ENDPOINTS: EndpointDoc[] = [
       { name: 'limit',   type: 'query', required: false, desc: 'Max rows (1–100, default 20)' },
       { name: 'offset',  type: 'query', required: false, desc: 'Pagination offset (default 0)' },
     ],
-    example: `curl -H "X-API-Key: YOUR_KEY" \\
-  "https://api.effant.io/v1/wallet/7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs/transactions?limit=5"`,
+    example: `curl -H "X-API-Key: eff_sk_your_key" \\
+  "${API_BASE}/v1/wallet/UYtvWaiiXudbBTN9tvCqJcgnALSKWP9rf6N8iQa673V/transactions?limit=3"`,
     response: `{
   "data": [
     {
-      "signature": "3Ax7Yn...",
-      "block_time": "2024-06-10T13:59:01Z",
-      "from_wallet": "7vfCXTUXx5...",
-      "from_label": "Binance Hot Wallet",
-      "to_wallet": "9Xm3pQ...",
+      "signature": "4xYm9q2R...",
+      "block_time": "2026-04-15T05:22:46Z",
+      "from_wallet": "UYtvWaiiXudb...",
+      "from_label": "wash_bot",
+      "to_wallet": "2kC1X5nWc9ER...",
       "to_label": null,
-      "amount_sol": 1250.0,
+      "amount_sol": 9.018,
       "fee": 0.000005,
       "success": true,
       "program_id": "11111111111111111111111111111111"
     }
   ],
-  "meta": { "count": 5, "total": 48291, "limit": 5, "offset": 0 }
+  "meta": { "count": 3, "total": 8241, "limit": 3, "offset": 0 }
 }`,
   },
   {
@@ -771,21 +773,21 @@ const ENDPOINTS: EndpointDoc[] = [
       { name: 'severity',     type: 'query', required: false, desc: 'low | medium | high | critical' },
       { name: 'anomaly_type', type: 'query', required: false, desc: 'wash_trading | volume_spike | sandwich_attack | whale_movement' },
     ],
-    example: `curl -H "X-API-Key: YOUR_KEY" \\
-  "https://api.effant.io/v1/anomalies?severity=critical&limit=10"`,
+    example: `curl -H "X-API-Key: eff_sk_your_key" \\
+  "${API_BASE}/v1/anomalies?severity=critical&limit=3"`,
     response: `{
   "data": [
     {
-      "id": 4821,
-      "wallet_address": "3Kzh9f...",
-      "wallet_label": null,
-      "anomaly_type": "sandwich_attack",
+      "id": 280865,
+      "wallet_address": "UYtvWaiiXudbBTN9tvCqJcgnALSKWP9rf6N8iQa673V",
+      "wallet_label": "wash_bot",
+      "anomaly_type": "wash_trading",
       "severity": "critical",
-      "detected_at": "2024-06-10T13:55:12Z",
-      "description": "Wallet executed sandwich attack on 3 consecutive blocks"
+      "detected_at": "2026-04-15T05:22:46Z",
+      "description": "Circular flow: 2kC1X5nWc9ER ↔ UYtvWaiiXudb | Out: 9.018 SOL | Return: 10.083 SOL | Cycled: 19.1 SOL | Gap: 138s"
     }
   ],
-  "meta": { "count": 10, "total": 4821 }
+  "meta": { "count": 3, "total": 295087, "limit": 3, "offset": 0 }
 }`,
   },
   {
@@ -797,23 +799,48 @@ const ENDPOINTS: EndpointDoc[] = [
       { name: 'limit',       type: 'query', required: false, desc: 'Max clusters (1–50, default 20)' },
       { name: 'min_wallets', type: 'query', required: false, desc: 'Minimum wallets per cluster (default 2)' },
     ],
-    example: `curl -H "X-API-Key: YOUR_KEY" \\
-  "https://api.effant.io/v1/clusters?min_wallets=5&limit=10"`,
+    example: `curl -H "X-API-Key: eff_sk_your_key" \\
+  "${API_BASE}/v1/clusters?min_wallets=5&limit=3"`,
     response: `{
   "data": [
     {
-      "id": 7,
-      "name": "Wash Cluster #7",
-      "wallet_count": 23,
-      "total_volume": 891234.5,
-      "dominant_type": "bot",
-      "algorithm": "hdbscan",
+      "id": 617,
+      "name": "unknown_cluster_617",
+      "wallet_count": 130,
+      "total_volume": 12361.37,
+      "dominant_type": "unknown",
+      "algorithm": "louvain",
       "top_wallets": [
-        { "address": "5fGh2k...", "label": null, "entity_type": "bot", "volume": 48201.3 }
+        { "address": "2Y7HATmn9aJB...", "label": "unknown", "entity_type": "unknown", "volume": 4139.54 },
+        { "address": "JUP6LkbZbjS1...", "label": "Jupiter v6", "entity_type": "defi_protocol", "volume": 1127.86 }
       ]
     }
   ],
-  "meta": { "count": 10 }
+  "meta": { "count": 3 }
+}`,
+  },
+  {
+    method: 'GET',
+    path: '/public/anomalies',
+    auth: 'public',
+    desc: 'Public anomaly feed — same as /v1/anomalies but requires no API key. Use to explore before signing up.',
+    params: [
+      { name: 'limit',  type: 'query', required: false, desc: 'Max rows (1–200, default 50)' },
+    ],
+    example: `curl "${API_BASE}/public/anomalies?limit=3"`,
+    response: `{
+  "data": [
+    {
+      "id": 280865,
+      "wallet_address": "UYtvWaiiXudbBTN9tvCqJcgnALSKWP9rf6N8iQa673V",
+      "wallet_label": "wash_bot",
+      "anomaly_type": "wash_trading",
+      "severity": "critical",
+      "detected_at": "2026-04-15T05:22:46Z",
+      "description": "Circular flow: 2kC1X5nWc9ER ↔ UYtvWaiiXudb | Out: 9.018 SOL | Return: 10.083 SOL | Cycled: 19.1 SOL"
+    }
+  ],
+  "meta": { "count": 3, "total": 295087 }
 }`,
   },
   {
@@ -822,22 +849,28 @@ const ENDPOINTS: EndpointDoc[] = [
     auth: 'public',
     desc: 'Aggregated 24-hour market metrics — volume timeline, anomaly breakdown by severity, entity distribution, and key statistics. No API key required.',
     params: [],
-    example: `curl https://api.effant.io/public/metrics`,
+    example: `curl ${API_BASE}/public/metrics`,
     response: `{
   "data": {
     "key_stats": {
-      "total_vol_24h": 1284930.0,
-      "whale_vol_24h": 482100.0,
-      "whale_pct": 37.5,
-      "total_txs_24h": 29481,
-      "active_wallets_24h": 8821,
-      "anomaly_count_24h": 143,
-      "wash_bot_pct": 8.2,
-      "sandwich_pct": 3.1
+      "total_vol_24h": 328329.85,
+      "whale_vol_24h": 18087.32,
+      "whale_pct": 5.5,
+      "total_txs_24h": 1400434,
+      "active_wallets_24h": 65845,
+      "anomaly_count_24h": 72780,
+      "wash_bot_pct": 16.6,
+      "sandwich_pct": 58.9
     },
-    "volume_timeline": [{ "hour": "2024-06-10T00:00:00Z", "volume_sol": 52000, "tx_count": 1200, "whale_vol": 18000, "whale_count": 4 }],
-    "anomaly_timeline": [{ "hour": "2024-06-10T00:00:00Z", "critical": 2, "high": 7, "medium": 18, "low": 41 }],
-    "entity_breakdown": [{ "type": "exchange", "count": 142 }, { "type": "bot", "count": 891 }]
+    "volume_timeline": [
+      { "hour": "2026-04-12T17:00:00Z", "volume_sol": 258009.54, "tx_count": 173390, "whale_vol": 15546.63, "whale_count": 8 }
+    ],
+    "anomaly_timeline": [
+      { "hour": "2026-04-12T17:00:00Z", "critical": 18204, "high": 0, "medium": 0, "low": 0 }
+    ],
+    "entity_breakdown": [
+      { "type": "unknown", "count": 65812 }, { "type": "defi_protocol", "count": 22 }, { "type": "bot", "count": 11 }
+    ]
   }
 }`,
   },
@@ -845,20 +878,26 @@ const ENDPOINTS: EndpointDoc[] = [
     method: 'GET',
     path: '/public/clusters/{id}/analysis',
     auth: 'public',
-    desc: 'Deep analysis for a single cluster — activity timeline in 5-minute buckets, top programs used, peak activity, and duration metrics.',
+    desc: 'Deep analysis for a single cluster — activity timeline in 5-minute buckets, top programs used, peak activity bucket, and duration.',
     params: [
-      { name: 'id', type: 'path', required: true, desc: 'Cluster ID from /v1/clusters' },
+      { name: 'id', type: 'path', required: true, desc: 'Cluster ID (from /public/clusters or /v1/clusters)' },
     ],
-    example: `curl https://api.effant.io/public/clusters/7/analysis`,
+    example: `curl ${API_BASE}/public/clusters/617/analysis`,
     response: `{
   "data": {
-    "cluster_id": 7,
-    "wallet_count": 23,
-    "total_volume": 891234.5,
-    "duration_minutes": 180,
-    "peak_bucket": { "bucket": "2024-06-10T11:30:00Z", "tx_count": 48, "volume_sol": 12400.0 },
-    "timeline": [{ "bucket": "2024-06-10T11:00:00Z", "tx_count": 12, "volume_sol": 3100.0 }],
-    "top_programs": [{ "program_id": "JUP6Lk...", "count": 291, "label": "Jupiter v6", "pct": 61.2 }]
+    "cluster_id": 617,
+    "wallet_count": 130,
+    "total_volume": 12361.37,
+    "duration_minutes": 1450,
+    "peak_bucket": { "bucket": "2026-04-12T17:45:00Z", "tx_count": 2914, "volume_sol": 9475.46 },
+    "timeline": [
+      { "bucket": "2026-04-12T17:40:00Z", "tx_count": 1511, "volume_sol": 1932.61 },
+      { "bucket": "2026-04-12T17:45:00Z", "tx_count": 2914, "volume_sol": 9475.46 }
+    ],
+    "top_programs": [
+      { "program_id": "9H6tua7jkLhd...", "count": 2647, "label": "9H6tua7jkLhd...", "pct": 40.8 },
+      { "program_id": "D8cy77BBepLM...", "count": 1891, "label": "D8cy77BBepLM...", "pct": 29.1 }
+    ]
   }
 }`,
   },
@@ -1024,7 +1063,7 @@ function ApiDocumentation() {
           {/* Quick stats */}
           <div className="flex gap-3 flex-wrap shrink-0">
             {[
-              { label: 'Base URL',     value: 'api.effant.io' },
+              { label: 'Base URL',     value: 'effant-production.up.railway.app' },
               { label: 'Format',       value: 'JSON / HTTPS' },
               { label: 'Auth header',  value: 'X-API-Key' },
               { label: 'Rate limit',   value: '1 req / sec'   },
@@ -1049,10 +1088,10 @@ function ApiDocumentation() {
           <pre className="rounded px-4 py-3 text-xs overflow-x-auto"
             style={{ background: '#050810', border: '1px solid var(--border)', color: '#7dd3fc', lineHeight: 1.7 }}>
 {`# Authenticated request
-curl -H "X-API-Key: efk_your_key_here" https://api.effant.io/v1/wallet/ADDRESS
+curl -H "X-API-Key: eff_sk_your_key" ${API_BASE}/v1/wallet/ADDRESS
 
-# Public request (no key)
-curl https://api.effant.io/public/metrics`}
+# Public request — no key needed
+curl ${API_BASE}/public/metrics`}
           </pre>
         </div>
 
