@@ -566,12 +566,26 @@ async def public_clusters(limit: int = Query(20, ge=1, le=50)) -> dict:
 # ── GET /public/metrics  (no auth, metrics dashboard) ────────────────────────
 
 def _fetch_metrics() -> dict:
-    # 24-hour transaction volume timeline (hourly, with whale split)
-    volume_rows = query("""
+    # Anchor window to the latest data actually in the DB (not wall-clock NOW()).
+    # This ensures metrics are always non-zero even if the pipeline is hours behind.
+    anchor = query_one(
+        "SELECT MAX(block_time) AS latest FROM transactions WHERE success = TRUE AND amount_sol > 0",
+        (),
+    )
+    latest_tx = anchor["latest"] if anchor and anchor["latest"] else None
+
+    anom_anchor = query_one("SELECT MAX(detected_at) AS latest FROM anomalies", ())
+    latest_anom = anom_anchor["latest"] if anom_anchor and anom_anchor["latest"] else None
+
+    # Fall back to NOW() if table is completely empty
+    tx_end   = f"'{latest_tx.isoformat()}'" if latest_tx   else "NOW()"
+    anom_end = f"'{latest_anom.isoformat()}'" if latest_anom else "NOW()"
+
+    volume_rows = query(f"""
         WITH hours AS (
             SELECT generate_series(
-                date_trunc('hour', NOW() - INTERVAL '23 hours'),
-                date_trunc('hour', NOW()),
+                date_trunc('hour', {tx_end}::timestamptz - INTERVAL '23 hours'),
+                date_trunc('hour', {tx_end}::timestamptz),
                 '1 hour'::interval
             ) AS hour
         ),
@@ -583,7 +597,8 @@ def _fetch_metrics() -> dict:
                 SUM(CASE WHEN amount_sol >= 500 THEN amount_sol ELSE 0 END) AS whale_vol,
                 COUNT(CASE WHEN amount_sol >= 500 THEN 1 END)               AS whale_count
             FROM transactions
-            WHERE block_time > NOW() - INTERVAL '24 hours'
+            WHERE block_time > {tx_end}::timestamptz - INTERVAL '24 hours'
+              AND block_time <= {tx_end}::timestamptz
               AND success = TRUE
               AND amount_sol > 0
             GROUP BY 1
@@ -598,12 +613,11 @@ def _fetch_metrics() -> dict:
         ORDER BY h.hour
     """, ())
 
-    # 24-hour anomaly timeline (hourly, split by severity)
-    anomaly_rows = query("""
+    anomaly_rows = query(f"""
         WITH hours AS (
             SELECT generate_series(
-                date_trunc('hour', NOW() - INTERVAL '23 hours'),
-                date_trunc('hour', NOW()),
+                date_trunc('hour', {anom_end}::timestamptz - INTERVAL '23 hours'),
+                date_trunc('hour', {anom_end}::timestamptz),
                 '1 hour'::interval
             ) AS hour
         ),
@@ -615,7 +629,8 @@ def _fetch_metrics() -> dict:
                 COUNT(CASE WHEN severity = 'medium'   THEN 1 END) AS medium,
                 COUNT(CASE WHEN severity = 'low'      THEN 1 END) AS low
             FROM anomalies
-            WHERE detected_at > NOW() - INTERVAL '24 hours'
+            WHERE detected_at > {anom_end}::timestamptz - INTERVAL '24 hours'
+              AND detected_at <= {anom_end}::timestamptz
             GROUP BY 1
         )
         SELECT h.hour,
@@ -628,7 +643,6 @@ def _fetch_metrics() -> dict:
         ORDER BY h.hour
     """, ())
 
-    # Entity type distribution
     entity_rows = query("""
         SELECT entity_type AS type, COUNT(*) AS count
         FROM wallets
@@ -638,24 +652,26 @@ def _fetch_metrics() -> dict:
         LIMIT 8
     """, ())
 
-    # Key stats (24h summary)
-    stats = query_one("""
+    stats = query_one(f"""
         SELECT
-            COALESCE(SUM(amount_sol), 0)                                         AS total_vol,
+            COALESCE(SUM(amount_sol), 0)                                             AS total_vol,
             COALESCE(SUM(CASE WHEN amount_sol >= 500 THEN amount_sol ELSE 0 END), 0) AS whale_vol,
-            COUNT(*)                                                              AS total_txs,
-            COUNT(DISTINCT COALESCE(from_wallet, to_wallet))                     AS active_wallets
+            COUNT(*)                                                                  AS total_txs,
+            COUNT(DISTINCT COALESCE(from_wallet, to_wallet))                         AS active_wallets
         FROM transactions
-        WHERE block_time > NOW() - INTERVAL '24 hours' AND success = TRUE
+        WHERE block_time > {tx_end}::timestamptz - INTERVAL '24 hours'
+          AND block_time <= {tx_end}::timestamptz
+          AND success = TRUE
     """, ())
 
-    anom_stats = query_one("""
+    anom_stats = query_one(f"""
         SELECT
             COUNT(*)                                                     AS total,
             COUNT(CASE WHEN anomaly_type = 'wash_trading'    THEN 1 END) AS wash_bots,
             COUNT(CASE WHEN anomaly_type = 'sandwich_attack' THEN 1 END) AS sandwiches
         FROM anomalies
-        WHERE detected_at > NOW() - INTERVAL '24 hours'
+        WHERE detected_at > {anom_end}::timestamptz - INTERVAL '24 hours'
+          AND detected_at <= {anom_end}::timestamptz
     """, ())
 
     total_vol  = float(stats["total_vol"])  if stats else 0.0
