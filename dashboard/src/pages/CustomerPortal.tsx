@@ -147,10 +147,23 @@ function KeyCard({ me, onProvisioned }: { me: MeData; onProvisioned: (key: strin
                 letterSpacing: activeKey && activeKey !== '__reprovision__' ? '0.03em' : undefined,
               }}>
               {activeKey === '__reprovision__'
-                ? 'Key not cached locally — revoke and re-provision to get a new one'
+                ? 'Key not cached in this browser — click Re-provision to get a new one'
                 : (activeKey ?? '••••••••••••••••••••••••••••••••')}
             </div>
-            {activeKey && activeKey !== '__reprovision__' && (
+            {activeKey === '__reprovision__' ? (
+              <button
+                onClick={() => { setRevealed(false); provision.mutate() }}
+                disabled={provision.isPending}
+                className="rounded px-3 py-2.5 text-xs font-semibold whitespace-nowrap transition-all"
+                style={{
+                  background: 'var(--accent)',
+                  color: '#fff',
+                  opacity: provision.isPending ? 0.6 : 1,
+                  flexShrink: 0,
+                }}>
+                {provision.isPending ? 'Generating…' : 'Re-provision'}
+              </button>
+            ) : activeKey ? (
               <button onClick={() => copy(activeKey)}
                 className="rounded px-3 py-2.5 text-xs font-semibold whitespace-nowrap transition-all"
                 style={{
@@ -160,7 +173,7 @@ function KeyCard({ me, onProvisioned }: { me: MeData; onProvisioned: (key: strin
                 }}>
                 {copied ? 'Copied' : 'Copy'}
               </button>
-            )}
+            ) : null}
           </div>
         </div>
 
