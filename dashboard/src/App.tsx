@@ -3,11 +3,12 @@ import { Layout } from './components/Layout'
 import { Overview } from './pages/Overview'
 import { WalletExplorer } from './pages/WalletExplorer'
 import { CustomerPortal } from './pages/CustomerPortal'
+import { TerminalPage } from './pages/TerminalPage'
 import { Landing } from './pages/Landing'
 import { PrivacyPolicy } from './pages/PrivacyPolicy'
 import { TermsOfService } from './pages/TermsOfService'
 
-type Page = 'landing' | 'overview' | 'explorer' | 'portal' | 'privacy' | 'terms'
+type Page = 'landing' | 'overview' | 'explorer' | 'portal' | 'terminal' | 'privacy' | 'terms'
 
 function parseUrlParams() {
   const p = new URLSearchParams(window.location.search)
@@ -72,8 +73,9 @@ export default function App() {
 
   return (
     <Layout page={page} onNav={p => setPage(p as Page)} onSignOut={() => setPage('landing')}>
-      {page === 'overview' && <Overview />}
-      {page === 'explorer' && <WalletExplorer />}
+      {page === 'overview'  && <Overview />}
+      {page === 'explorer'  && <WalletExplorer />}
+      {page === 'terminal'  && <TerminalPage onGoPortal={() => setPage('portal')} />}
     </Layout>
   )
 }

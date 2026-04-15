@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { ProfileDropdown } from './ProfileDropdown'
 
-type Page = 'landing' | 'overview' | 'explorer' | 'portal'
+type Page = 'landing' | 'overview' | 'explorer' | 'portal' | 'terminal'
 
 interface LayoutProps {
   page:      Page
@@ -13,6 +13,7 @@ interface LayoutProps {
 const NAV: { id: Page; label: string }[] = [
   { id: 'overview', label: 'Overview'       },
   { id: 'explorer', label: 'Wallet Explorer' },
+  { id: 'terminal', label: 'Terminal'        },
   { id: 'portal',   label: 'API Portal'      },
 ]
 

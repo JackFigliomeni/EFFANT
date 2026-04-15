@@ -657,7 +657,9 @@ export function CustomerPortal({
   onSignup,
 }: CustomerPortalProps = {}) {
   const [authed, setAuthed]           = useState(isLoggedIn)
-  const [apiKey, setApiKey]           = useState<string | null>(null)
+  const [apiKey, setApiKey]           = useState<string | null>(
+    () => localStorage.getItem('effant_api_key'),
+  )
   const [showSuccess, setShowSuccess] = useState(!!checkoutSuccess)
   const qc                            = useQueryClient()
 
@@ -678,6 +680,7 @@ export function CustomerPortal({
 
   const handleLogout = useCallback(() => {
     logout()
+    localStorage.removeItem('effant_api_key')
     setAuthed(false)
     setApiKey(null)
     qc.clear()
@@ -726,7 +729,10 @@ export function CustomerPortal({
         </div>
       ) : me ? (
         <>
-          <KeyCard me={me} onProvisioned={setApiKey} />
+          <KeyCard me={me} onProvisioned={key => {
+            localStorage.setItem('effant_api_key', key)
+            setApiKey(key)
+          }} />
           <BillingPanel authed={authed} />
           {isPro && <WebhooksPanel />}
           <CallLog />
