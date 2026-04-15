@@ -389,8 +389,9 @@ export function ApiTerminal({
           </div>
         ) : apiKey === null ? (
           <div className="rounded px-4 py-3 mono text-xs"
-            style={{ background: '#0c1020', border: '1px solid var(--border)', color: 'var(--dim)' }}>
-            Provision an API key above to run requests.
+            style={{ background: '#0c1020', border: '1px solid rgba(91,108,248,0.2)', color: 'var(--dim)' }}>
+            <span style={{ color: 'var(--accent)' }}>↑</span>{' '}
+            Go to <strong style={{ color: '#fff' }}>API Portal</strong> and provision a key — it will be pre-filled here automatically.
           </div>
         ) : (
           <button
