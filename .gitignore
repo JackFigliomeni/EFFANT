@@ -9,3 +9,4 @@ data/*.csv
 dashboard/node_modules/
 dashboard/dist/
 .DS_Store
+.vercel

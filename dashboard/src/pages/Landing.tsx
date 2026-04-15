@@ -69,14 +69,14 @@ function PlanCard({
       className="rounded-lg flex flex-col"
       style={{
         background: highlight ? '#0f1629' : 'var(--surface)',
-        border: `1px solid ${highlight ? 'var(--accent)' : 'var(--border)'}`,
+        border: `1px solid ${highlight ? '#5b6cf8' : 'var(--border)'}`,
         boxShadow: highlight ? '0 0 40px #5b6cf820' : 'none',
       }}
     >
       {highlight && (
         <div
           className="text-center py-1.5 text-xs font-semibold mono tracking-widest uppercase rounded-t-lg"
-          style={{ background: 'var(--accent)', color: '#fff' }}
+          style={{ background: '#5b6cf8', color: '#fff' }}
         >
           Most Popular
         </div>
@@ -107,13 +107,13 @@ function PlanCard({
           disabled={loading}
           className="w-full rounded py-3 text-sm font-semibold transition-all"
           style={{
-            background: highlight ? 'var(--accent)' : 'transparent',
-            border: `1px solid ${highlight ? 'var(--accent)' : 'var(--border)'}`,
+            background: highlight ? '#5b6cf8' : 'transparent',
+            border: `1px solid ${highlight ? '#5b6cf8' : 'var(--border)'}`,
             color: highlight ? '#fff' : 'var(--text)',
             opacity: loading ? 0.6 : 1,
           }}
           onMouseEnter={e => {
-            if (!highlight) e.currentTarget.style.borderColor = 'var(--accent)'
+            if (!highlight) e.currentTarget.style.borderColor = '#5b6cf8'
           }}
           onMouseLeave={e => {
             if (!highlight) e.currentTarget.style.borderColor = 'var(--border)'
@@ -138,7 +138,7 @@ export function Landing({ onGetStarted, onLogin, onPrivacy, onTerms }: LandingPr
         style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
       >
         <div className="flex items-center gap-3">
-          <span className="mono font-bold" style={{ color: 'var(--accent)', fontSize: 15, letterSpacing: '-0.01em' }}>
+          <span className="mono font-bold" style={{ color: '#5b6cf8', fontSize: 15, letterSpacing: '-0.01em' }}>
             EFFANT
           </span>
           <span style={{ color: 'var(--border)' }}>|</span>
@@ -157,7 +157,7 @@ export function Landing({ onGetStarted, onLogin, onPrivacy, onTerms }: LandingPr
           <button
             onClick={() => onGetStarted('starter')}
             className="rounded px-4 py-2 text-xs font-semibold transition-opacity"
-            style={{ background: 'var(--accent)', color: '#fff' }}
+            style={{ background: '#5b6cf8', color: '#fff' }}
             onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
             onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
           >
@@ -173,9 +173,9 @@ export function Landing({ onGetStarted, onLogin, onPrivacy, onTerms }: LandingPr
       >
         <div
           className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs mono mb-8"
-          style={{ background: '#5b6cf810', border: '1px solid #5b6cf835', color: 'var(--accent)' }}
+          style={{ background: '#5b6cf810', border: '1px solid #5b6cf835', color: '#5b6cf8' }}
         >
-          <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent)' }} />
+          <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: '#5b6cf8' }} />
           Live Solana intelligence · updating every 30s
         </div>
         <h1
@@ -183,7 +183,7 @@ export function Landing({ onGetStarted, onLogin, onPrivacy, onTerms }: LandingPr
           style={{ color: '#fff', fontSize: 52, textAlign: 'center' }}
         >
           Solana on-chain intelligence<br />
-          <span style={{ color: 'var(--accent)' }}>for builders who ship.</span>
+          <span style={{ color: '#5b6cf8' }}>for builders who ship.</span>
         </h1>
         <p
           className="text-base mb-10"
@@ -196,7 +196,7 @@ export function Landing({ onGetStarted, onLogin, onPrivacy, onTerms }: LandingPr
           <button
             onClick={() => onGetStarted('starter')}
             className="rounded px-8 py-3 font-semibold text-sm transition-opacity"
-            style={{ background: 'var(--accent)', color: '#fff' }}
+            style={{ background: '#5b6cf8', color: '#fff' }}
             onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
             onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
           >

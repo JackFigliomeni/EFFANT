@@ -177,3 +177,44 @@ export interface ClusterAnalysis {
 
 export const fetchClusterAnalysis = (cluster_id: number) =>
   getPublic<ApiResponse<ClusterAnalysis>>(`/public/clusters/${cluster_id}/analysis`)
+
+// /public/metrics
+export interface VolumePoint {
+  hour: string
+  volume_sol: number
+  tx_count: number
+  whale_vol: number
+  whale_count: number
+}
+
+export interface AnomalyPoint {
+  hour: string
+  critical: number
+  high: number
+  medium: number
+  low: number
+}
+
+export interface EntityCount {
+  type: string
+  count: number
+}
+
+export interface MetricsData {
+  volume_timeline: VolumePoint[]
+  anomaly_timeline: AnomalyPoint[]
+  entity_breakdown: EntityCount[]
+  key_stats: {
+    total_vol_24h: number
+    whale_vol_24h: number
+    whale_pct: number
+    total_txs_24h: number
+    active_wallets_24h: number
+    anomaly_count_24h: number
+    wash_bot_pct: number
+    sandwich_pct: number
+  }
+}
+
+export const fetchMetrics = () =>
+  getPublic<ApiResponse<MetricsData>>('/public/metrics')

@@ -563,6 +563,156 @@ async def public_clusters(limit: int = Query(20, ge=1, le=50)) -> dict:
     return ok(result["clusters"], total=result["total"], limit=limit, offset=0)
 
 
+# ── GET /public/metrics  (no auth, metrics dashboard) ────────────────────────
+
+def _fetch_metrics() -> dict:
+    # 24-hour transaction volume timeline (hourly, with whale split)
+    volume_rows = query("""
+        WITH hours AS (
+            SELECT generate_series(
+                date_trunc('hour', NOW() - INTERVAL '23 hours'),
+                date_trunc('hour', NOW()),
+                '1 hour'::interval
+            ) AS hour
+        ),
+        tx_data AS (
+            SELECT
+                date_trunc('hour', block_time) AS hour,
+                SUM(amount_sol)                          AS volume_sol,
+                COUNT(*)                                 AS tx_count,
+                SUM(CASE WHEN amount_sol >= 500 THEN amount_sol ELSE 0 END) AS whale_vol,
+                COUNT(CASE WHEN amount_sol >= 500 THEN 1 END)               AS whale_count
+            FROM transactions
+            WHERE block_time > NOW() - INTERVAL '24 hours'
+              AND success = TRUE
+              AND amount_sol > 0
+            GROUP BY 1
+        )
+        SELECT h.hour,
+               COALESCE(t.volume_sol, 0)  AS volume_sol,
+               COALESCE(t.tx_count, 0)    AS tx_count,
+               COALESCE(t.whale_vol, 0)   AS whale_vol,
+               COALESCE(t.whale_count, 0) AS whale_count
+        FROM hours h
+        LEFT JOIN tx_data t ON h.hour = t.hour
+        ORDER BY h.hour
+    """, ())
+
+    # 24-hour anomaly timeline (hourly, split by severity)
+    anomaly_rows = query("""
+        WITH hours AS (
+            SELECT generate_series(
+                date_trunc('hour', NOW() - INTERVAL '23 hours'),
+                date_trunc('hour', NOW()),
+                '1 hour'::interval
+            ) AS hour
+        ),
+        anom_data AS (
+            SELECT
+                date_trunc('hour', detected_at) AS hour,
+                COUNT(CASE WHEN severity = 'critical' THEN 1 END) AS critical,
+                COUNT(CASE WHEN severity = 'high'     THEN 1 END) AS high,
+                COUNT(CASE WHEN severity = 'medium'   THEN 1 END) AS medium,
+                COUNT(CASE WHEN severity = 'low'      THEN 1 END) AS low
+            FROM anomalies
+            WHERE detected_at > NOW() - INTERVAL '24 hours'
+            GROUP BY 1
+        )
+        SELECT h.hour,
+               COALESCE(a.critical, 0) AS critical,
+               COALESCE(a.high,     0) AS high,
+               COALESCE(a.medium,   0) AS medium,
+               COALESCE(a.low,      0) AS low
+        FROM hours h
+        LEFT JOIN anom_data a ON h.hour = a.hour
+        ORDER BY h.hour
+    """, ())
+
+    # Entity type distribution
+    entity_rows = query("""
+        SELECT entity_type AS type, COUNT(*) AS count
+        FROM wallets
+        WHERE entity_type IS NOT NULL AND entity_type <> 'unknown'
+        GROUP BY entity_type
+        ORDER BY count DESC
+        LIMIT 8
+    """, ())
+
+    # Key stats (24h summary)
+    stats = query_one("""
+        SELECT
+            COALESCE(SUM(amount_sol), 0)                                         AS total_vol,
+            COALESCE(SUM(CASE WHEN amount_sol >= 500 THEN amount_sol ELSE 0 END), 0) AS whale_vol,
+            COUNT(*)                                                              AS total_txs,
+            COUNT(DISTINCT COALESCE(from_wallet, to_wallet))                     AS active_wallets
+        FROM transactions
+        WHERE block_time > NOW() - INTERVAL '24 hours' AND success = TRUE
+    """, ())
+
+    anom_stats = query_one("""
+        SELECT
+            COUNT(*)                                                     AS total,
+            COUNT(CASE WHEN anomaly_type = 'wash_trading'    THEN 1 END) AS wash_bots,
+            COUNT(CASE WHEN anomaly_type = 'sandwich_attack' THEN 1 END) AS sandwiches
+        FROM anomalies
+        WHERE detected_at > NOW() - INTERVAL '24 hours'
+    """, ())
+
+    total_vol  = float(stats["total_vol"])  if stats else 0.0
+    whale_vol  = float(stats["whale_vol"])  if stats else 0.0
+    total_txs  = int(stats["total_txs"])    if stats else 0
+    active_w   = int(stats["active_wallets"]) if stats else 0
+    anom_total = int(anom_stats["total"])      if anom_stats else 0
+    wash_bots  = int(anom_stats["wash_bots"])  if anom_stats else 0
+    sandwiches = int(anom_stats["sandwiches"]) if anom_stats else 0
+
+    whale_pct     = round(whale_vol / total_vol * 100, 1) if total_vol > 0 else 0.0
+    wash_bot_pct  = round(wash_bots  / anom_total * 100, 1) if anom_total > 0 else 0.0
+    sandwich_pct  = round(sandwiches / anom_total * 100, 1) if anom_total > 0 else 0.0
+
+    def fmt_vol_row(r: dict) -> dict:
+        return {
+            "hour":        r["hour"].isoformat() if r["hour"] else None,
+            "volume_sol":  round(float(r["volume_sol"]),  2),
+            "tx_count":    int(r["tx_count"]),
+            "whale_vol":   round(float(r["whale_vol"]),   2),
+            "whale_count": int(r["whale_count"]),
+        }
+
+    def fmt_anom_row(r: dict) -> dict:
+        return {
+            "hour":     r["hour"].isoformat() if r["hour"] else None,
+            "critical": int(r["critical"]),
+            "high":     int(r["high"]),
+            "medium":   int(r["medium"]),
+            "low":      int(r["low"]),
+        }
+
+    return {
+        "volume_timeline":   [fmt_vol_row(r)  for r in volume_rows],
+        "anomaly_timeline":  [fmt_anom_row(r) for r in anomaly_rows],
+        "entity_breakdown":  [{"type": r["type"], "count": int(r["count"])} for r in entity_rows],
+        "key_stats": {
+            "total_vol_24h":     round(total_vol, 2),
+            "whale_vol_24h":     round(whale_vol, 2),
+            "whale_pct":         whale_pct,
+            "total_txs_24h":     total_txs,
+            "active_wallets_24h": active_w,
+            "anomaly_count_24h": anom_total,
+            "wash_bot_pct":      wash_bot_pct,
+            "sandwich_pct":      sandwich_pct,
+        },
+    }
+
+
+@app.get("/public/metrics", tags=["public"])
+@cache(expire=60, key_builder=_cache_key)
+async def public_metrics() -> dict:
+    """Unauthenticated metrics for the charts dashboard. Cached 60s."""
+    data = await run_in_threadpool(_fetch_metrics)
+    return ok(data)
+
+
 # ── GET /public/clusters/{cluster_id}/analysis  (Pro paywall on frontend) ────
 
 _PROGRAM_LABELS: dict[str, str] = {

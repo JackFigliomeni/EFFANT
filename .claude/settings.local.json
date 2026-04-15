@@ -102,7 +102,23 @@
       "Bash(source /Users/jackfigliomeni/effant/.venv/bin/activate)",
       "Bash(pip freeze:*)",
       "Read(//Applications/Docker.app/Contents/Resources/bin/**)",
-      "Read(//Users/jackfigliomeni/.docker/bin/**)"
+      "Read(//Users/jackfigliomeni/.docker/bin/**)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(vercel env:*)",
+      "Bash(vercel --prod)",
+      "Bash(curl -s --max-time 10 https://effant-production.up.railway.app/v1/health)",
+      "Bash(curl -s --max-time 10 https://effant-production.up.railway.app/v1/health -H 'X-API-Key: eff_sk_OaOpGvVrzx2E1P8MG8wOHoV5h1YLquEmv_-_aAXWiBg')",
+      "Bash(railway status:*)",
+      "Bash(curl -s https://effant-production.up.railway.app/health)",
+      "Bash(curl -s \"https://effant-production.up.railway.app/public/anomalies?limit=5\")",
+      "Bash(curl -s \"https://effant-production.up.railway.app/public/clusters?limit=5\")",
+      "Bash(curl -s \"https://effant-production.up.railway.app/health\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('anomalies:', d['database']['anomalies']\\); print\\('clusters:', d['database']['clusters']\\)\")",
+      "Bash(curl -s \"https://effant-production.up.railway.app/public/anomalies?limit=3\")",
+      "Bash(railway variables:*)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('DATABASE_URL','NOT FOUND'\\)\\)\")"
     ]
   }
 }
