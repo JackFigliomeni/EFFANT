@@ -58,9 +58,9 @@ export default function App() {
   }
 
   return (
-    <Layout page={page} onNav={p => setPage(p)} onSignOut={() => setPage('landing')}>
-      {page === 'overview'  && <Overview  onGoMetrics={() => setPage('metrics')} />}
-      {page === 'metrics'   && <MetricsPage onGoOverview={() => setPage('overview')} />}
+    <Layout page={page} onNav={p => { setPage(p); window.scrollTo({ top: 0 }) }} onSignOut={() => setPage('landing')}>
+      {page === 'overview'  && <Overview  onGoMetrics={() => { setPage('metrics'); window.scrollTo({ top: 0 }) }} />}
+      {page === 'metrics'   && <MetricsPage onGoOverview={() => { setPage('overview'); window.scrollTo({ top: 0 }) }} />}
       {page === 'explorer'  && <WalletExplorer />}
       {page === 'terminal'  && <TerminalPage onGoPortal={() => setPage('portal')} />}
       {page === 'portal'    && (
