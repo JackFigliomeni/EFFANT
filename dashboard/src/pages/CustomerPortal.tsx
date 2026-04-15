@@ -68,8 +68,10 @@ function CheckoutSuccessBanner({ onDismiss }: { onDismiss: () => void }) {
 
 function KeyCard({ me, onProvisioned }: { me: MeData; onProvisioned: (key: string) => void }) {
   const qc = useQueryClient()
-  const [copied, setCopied] = useState(false)
-  const [newKey, setNewKey] = useState<string | null>(null)
+  const [copied, setCopied]     = useState(false)
+  const [newKey, setNewKey]     = useState<string | null>(null)
+  const [revealed, setRevealed] = useState(false)
+  const storedKey = localStorage.getItem('effant_api_key')
 
   const provision = useMutation({
     mutationFn: provisionKey,
@@ -112,27 +114,42 @@ function KeyCard({ me, onProvisioned }: { me: MeData; onProvisioned: (key: strin
   }
 
   const key = me.api_key
-  const displayKey = newKey ?? '••••••••••••••••••••••••  (key shown once at generation)'
+  const activeKey  = newKey ?? (revealed ? storedKey : null)
+  const showBanner = !!newKey
 
   return (
     <Section title="API Key" sub={key ? `${key.tier.toUpperCase()} tier` : undefined}>
       <div className="space-y-5">
         <div>
-          <p className="mono text-xs mb-2" style={{ color: 'var(--muted)' }}>
-            {newKey ? '⚠  Copy this key now — it will not be shown again' : 'Key (hash stored, raw shown once)'}
-          </p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="mono text-xs" style={{ color: 'var(--muted)' }}>
+              {showBanner ? '⚠  Copy this key now' : 'Your API key'}
+            </p>
+            {!newKey && storedKey && (
+              <button
+                onClick={() => setRevealed(r => !r)}
+                className="mono text-xs transition-colors"
+                style={{ color: revealed ? 'var(--accent)' : 'var(--dim)' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
+                onMouseLeave={e => (e.currentTarget.style.color = revealed ? 'var(--accent)' : 'var(--dim)')}
+              >
+                {revealed ? '🙈 hide' : '👁 reveal'}
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <div className="flex-1 rounded px-3 py-2.5 mono text-sm overflow-x-auto"
               style={{
                 background: 'var(--surface2)',
-                border: `1px solid ${newKey ? '#eab30840' : 'var(--border)'}`,
-                color: newKey ? '#eab308' : 'var(--muted)',
+                border: `1px solid ${activeKey ? '#eab30840' : 'var(--border)'}`,
+                color: activeKey ? '#eab308' : 'var(--muted)',
                 whiteSpace: 'nowrap',
+                letterSpacing: activeKey ? '0.03em' : undefined,
               }}>
-              {newKey ?? displayKey}
+              {activeKey ?? '••••••••••••••••••••••••••••••••'}
             </div>
-            {newKey && (
-              <button onClick={() => copy(newKey)}
+            {activeKey && (
+              <button onClick={() => copy(activeKey)}
                 className="rounded px-3 py-2.5 text-xs font-semibold whitespace-nowrap transition-all"
                 style={{
                   background: copied ? '#22c55e20' : 'var(--border2)',

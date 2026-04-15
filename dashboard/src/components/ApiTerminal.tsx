@@ -1,123 +1,17 @@
-import { useState, useMemo } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 
-// ── Endpoint definitions ──────────────────────────────────────────────────────
-
-type ParamDef = {
-  name: string
-  label: string
-  type: 'text' | 'number' | 'select'
-  default: string
-  placeholder?: string
-  options?: string[]
-}
-
-type Endpoint = {
-  id: string
-  path: string
-  desc: string
-  ttl: string
-  tier: 'starter' | 'pro'
-  params: ParamDef[]
-  buildUrl: (vals: Record<string, string>) => string
-}
-
-const ENDPOINTS: Endpoint[] = [
-  {
-    id: 'health',
-    path: '/v1/health',
-    desc: 'System status — DB, Redis, pipeline health and entity counts',
-    ttl: '10s',
-    tier: 'starter',
-    params: [],
-    buildUrl: () => '/v1/health',
-  },
-  {
-    id: 'anomalies',
-    path: '/v1/anomalies',
-    desc: 'Anomaly feed — filter by severity or type, sorted critical-first',
-    ttl: '30s',
-    tier: 'starter',
-    params: [
-      { name: 'severity', label: 'Severity', type: 'select',
-        options: ['', 'critical', 'high', 'medium', 'low'], default: 'critical' },
-      { name: 'limit', label: 'Limit', type: 'number', default: '20' },
-    ],
-    buildUrl: (v) => {
-      const p = new URLSearchParams()
-      if (v.severity) p.set('severity', v.severity)
-      p.set('limit', v.limit || '20')
-      return `/v1/anomalies?${p}`
-    },
-  },
-  {
-    id: 'clusters',
-    path: '/v1/clusters',
-    desc: 'Entity clusters detected via Louvain community detection',
-    ttl: '5min',
-    tier: 'starter',
-    params: [
-      { name: 'min_wallets', label: 'Min wallets', type: 'number', default: '10' },
-      { name: 'limit',       label: 'Limit',       type: 'number', default: '10' },
-    ],
-    buildUrl: (v) =>
-      `/v1/clusters?min_wallets=${v.min_wallets || '10'}&limit=${v.limit || '10'}`,
-  },
-  {
-    id: 'wallet',
-    path: '/v1/wallet/{address}',
-    desc: 'Full wallet profile — label, risk score, cluster membership, anomaly count',
-    ttl: '60s',
-    tier: 'starter',
-    params: [
-      { name: 'address', label: 'Wallet address', type: 'text',
-        default: '6AvA8pyr22Ta8iEjJnpYmLhLJuNSpxCa8MdxPqfyzaix',
-        placeholder: 'Base58 Solana address' },
-    ],
-    buildUrl: (v) =>
-      `/v1/wallet/${v.address || '6AvA8pyr22Ta8iEjJnpYmLhLJuNSpxCa8MdxPqfyzaix'}`,
-  },
-  {
-    id: 'wallet-txs',
-    path: '/v1/wallet/{address}/transactions',
-    desc: 'Enriched transaction history — from/to labels resolved on every record',
-    ttl: '60s',
-    tier: 'starter',
-    params: [
-      { name: 'address', label: 'Wallet address', type: 'text',
-        default: '6AvA8pyr22Ta8iEjJnpYmLhLJuNSpxCa8MdxPqfyzaix' },
-      { name: 'limit', label: 'Limit', type: 'number', default: '10' },
-    ],
-    buildUrl: (v) =>
-      `/v1/wallet/${v.address || '6AvA8pyr22Ta8iEjJnpYmLhLJuNSpxCa8MdxPqfyzaix'}/transactions?limit=${v.limit || '10'}`,
-  },
-  {
-    id: 'flows',
-    path: '/v1/flows',
-    desc: 'Large fund movements above a SOL threshold — Pro tier only',
-    ttl: '30s',
-    tier: 'pro',
-    params: [
-      { name: 'min_sol', label: 'Min SOL', type: 'number', default: '1000' },
-      { name: 'limit',   label: 'Limit',   type: 'number', default: '10'   },
-    ],
-    buildUrl: (v) =>
-      `/v1/flows?min_sol=${v.min_sol || '1000'}&limit=${v.limit || '10'}`,
-  },
-]
-
 // ── JSON syntax highlighter ───────────────────────────────────────────────────
-// Regexes hoisted to module level (js-hoist-regexp) — created once, not per call.
 
-const RE_AMP   = /&/g
-const RE_LT    = /</g
-const RE_GT    = />/g
-const RE_KEY   = /(&quot;[^&]*&quot;)(\s*:)/g
-const RE_STR   = /:(\s*)(&quot;[^&]*&quot;)/g
-const RE_BOOL  = /\b(true|false)\b/g
-const RE_NULL  = /\bnull\b/g
-const RE_NUM   = /:\s*(-?\d+\.?\d*)/g
+const RE_AMP  = /&/g
+const RE_LT   = /</g
+const RE_GT   = />/g
+const RE_KEY  = /(&quot;[^&]*&quot;)(\s*:)/g
+const RE_STR  = /:(\s*)(&quot;[^&]*&quot;)/g
+const RE_BOOL = /\b(true|false)\b/g
+const RE_NULL = /\bnull\b/g
+const RE_NUM  = /:\s*(-?\d+\.?\d*)/g
 
 function highlight(json: string): string {
   return json
@@ -131,29 +25,41 @@ function highlight(json: string): string {
     .replace(RE_NUM,  (m, n) => m.replace(n, `<span style="color:#fb923c">${n}</span>`))
 }
 
-// ── Static styles hoisted outside component (rendering-hoist-jsx) ─────────────
+// ── Help text ─────────────────────────────────────────────────────────────────
 
-const inputStyle: React.CSSProperties = {
-  background: '#060a10',
-  border: '1px solid var(--border)',
-  borderRadius: 6,
-  color: '#fff',
-  fontFamily: 'inherit',
-  fontSize: 12,
-  padding: '6px 10px',
-  outline: 'none',
-  width: '100%',
+const HELP_TEXT = `Available commands:
+
+  GET /v1/health
+  GET /v1/anomalies [severity=critical|high|medium|low] [limit=20]
+  GET /v1/clusters  [min_wallets=10] [limit=10]
+  GET /v1/wallet/<address>
+  GET /v1/wallet/<address>/transactions [limit=10]
+  GET /v1/flows     [min_sol=1000] [limit=10]   (Pro only)
+
+  help   — show this message
+  clear  — clear the terminal
+
+Params are space-separated key=value pairs after the path:
+  GET /v1/anomalies severity=high limit=50
+  GET /v1/wallet/6AvA8pyr22Ta8iEjJnpYmLhLJuNSpxCa8MdxPqfyzaix`
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type LineType = 'prompt' | 'output' | 'error' | 'info' | 'status'
+
+interface Line {
+  type: LineType
+  text: string
+  html?: string
 }
 
-// Injected once at module level — avoids a <style> tag inside the component tree.
-if (typeof document !== 'undefined' && !document.getElementById('api-terminal-styles')) {
-  const s = document.createElement('style')
-  s.id = 'api-terminal-styles'
-  s.textContent = `@keyframes spin { to { transform: rotate(360deg); } }`
-  document.head.appendChild(s)
+function statusColor(text: string): string {
+  if (text.includes('running')) return '#f97316'
+  if (/● 2\d\d/.test(text))    return '#22c55e'
+  return '#f43f5e'
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export function ApiTerminal({
   apiKey,
@@ -162,298 +68,250 @@ export function ApiTerminal({
   apiKey: string | null
   tier: 'starter' | 'pro'
 }) {
-  const [selectedId, setSelectedId] = useState('anomalies')
-  const [paramVals, setParamVals]   = useState<Record<string, Record<string, string>>>({})
-  const [response, setResponse]     = useState<string | null>(null)
-  const [status, setStatus]         = useState<number | null>(null)
-  const [elapsed, setElapsed]       = useState<number | null>(null)
-  const [loading, setLoading]       = useState(false)
-  const [copiedResp, setCopiedResp] = useState(false)
-  const [copiedCurl, setCopiedCurl] = useState(false)
+  const initLines: Line[] = [
+    { type: 'info', text: 'EFFANT API Terminal  —  type `help` to see available commands' },
+    ...(apiKey
+      ? []
+      : [{ type: 'error' as LineType, text: '⚠  No API key found. Go to API Portal → provision a key, then come back.' }]),
+  ]
 
-  const ep     = ENDPOINTS.find(e => e.id === selectedId)!
-  const locked = ep.tier === 'pro' && tier !== 'pro'
+  const [lines, setLines]     = useState<Line[]>(initLines)
+  const [input, setInput]     = useState('')
+  const [history, setHistory] = useState<string[]>([])
+  const [histIdx, setHistIdx] = useState(-1)
+  const inputRef              = useRef<HTMLInputElement>(null)
+  const bottomRef             = useRef<HTMLDivElement>(null)
 
-  // Param values for selected endpoint, falling back to defaults
-  const vals = paramVals[selectedId] ?? Object.fromEntries(
-    ep.params.map(p => [p.name, p.default]),
-  )
+  // Auto-scroll on new output
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [lines])
 
-  // Memoize syntax highlighting — potentially large JSON string (rerender-memo)
-  const highlightedResponse = useMemo(
-    () => (response !== null ? highlight(response) : null),
-    [response],
-  )
+  // ── Command parsing ──────────────────────────────────────────────────────
 
-  function setVal(name: string, value: string) {
-    setParamVals(prev => ({
-      ...prev,
-      [selectedId]: { ...vals, [name]: value },
-    }))
+  function parseGet(raw: string): { path: string; params: Record<string, string> } | null {
+    const parts = raw.trim().split(/\s+/)
+    if (parts[0].toUpperCase() !== 'GET') return null
+    const rawPath = parts[1] ?? ''
+    const [pathname, qs] = rawPath.split('?')
+    const params: Record<string, string> = {}
+    if (qs) new URLSearchParams(qs).forEach((v, k) => { params[k] = v })
+    for (let i = 2; i < parts.length; i++) {
+      const eq = parts[i].indexOf('=')
+      if (eq > 0) params[parts[i].slice(0, eq)] = parts[i].slice(eq + 1)
+    }
+    return { path: pathname, params }
   }
 
-  function buildCurl(): string {
-    const url = `${BASE || 'https://api.effant.tech'}${ep.buildUrl(vals)}`
-    const key  = apiKey ? apiKey.slice(0, 16) + '…' : 'YOUR_KEY'
-    return `curl -H "X-API-Key: ${key}" \\\n  "${url}"`
-  }
+  // ── Execute ──────────────────────────────────────────────────────────────
 
-  async function run() {
-    if (!apiKey || locked) return
-    setLoading(true)
-    setResponse(null)
-    setStatus(null)
-    setElapsed(null)
+  async function execute(raw: string) {
+    const cmd = raw.trim()
+    if (!cmd) return
 
-    const url = `${BASE}${ep.buildUrl(vals)}`
+    setHistory(prev => [cmd, ...prev.slice(0, 99)])
+    setHistIdx(-1)
+
+    const push = (...l: Line[]) => setLines(prev => [...prev, ...l])
+
+    push({ type: 'prompt', text: cmd })
+
+    if (cmd === 'clear') {
+      setLines([{ type: 'info', text: 'EFFANT API Terminal  —  type `help` to see available commands' }])
+      return
+    }
+
+    if (cmd === 'help') {
+      push({ type: 'info', text: HELP_TEXT })
+      return
+    }
+
+    const lower = cmd.toLowerCase()
+    if (!lower.startsWith('get ')) {
+      push({ type: 'error', text: `Unknown command: "${cmd.split(' ')[0]}". Type \`help\` for commands.` })
+      return
+    }
+
+    if (!apiKey) {
+      push({ type: 'error', text: 'No API key — provision one in the API Portal first.' })
+      return
+    }
+
+    const parsed = parseGet(cmd)
+    if (!parsed) {
+      push({ type: 'error', text: 'Could not parse request. Example: GET /v1/health' })
+      return
+    }
+
+    if (parsed.path.startsWith('/v1/flows') && tier !== 'pro') {
+      push({ type: 'error', text: '/v1/flows requires a Pro subscription.' })
+      return
+    }
+
+    const qs  = new URLSearchParams(parsed.params).toString()
+    const url = `${BASE}${parsed.path}${qs ? '?' + qs : ''}`
     const t0  = performance.now()
+
+    // Optimistic "running" line that gets replaced
+    setLines(prev => [...prev, { type: 'status', text: '● running…' }])
 
     try {
       const res  = await fetch(url, { headers: { 'X-API-Key': apiKey } })
       const ms   = Math.round(performance.now() - t0)
       const json = await res.json()
-      setStatus(res.status)
-      setElapsed(ms)
-      setResponse(JSON.stringify(json, null, 2))
+      const str  = JSON.stringify(json, null, 2)
+
+      setLines(prev => [
+        ...prev.slice(0, -1), // remove "running" line
+        { type: 'status', text: `● ${res.status} ${res.ok ? 'OK' : 'ERR'}  ·  ${ms}ms  ·  ${url}` },
+        { type: 'output', text: str, html: highlight(str) },
+      ])
     } catch (err) {
-      setStatus(0)
-      setElapsed(Math.round(performance.now() - t0))
-      setResponse(`// Network error: ${String(err)}`)
-    } finally {
-      setLoading(false)
+      const ms = Math.round(performance.now() - t0)
+      setLines(prev => [
+        ...prev.slice(0, -1),
+        { type: 'error', text: `Network error (${ms}ms): ${String(err)}` },
+      ])
     }
   }
 
-  function copyResponse() {
-    if (!response) return
-    navigator.clipboard.writeText(response)
-    setCopiedResp(true)
-    setTimeout(() => setCopiedResp(false), 2000)
+  // ── Key handling ─────────────────────────────────────────────────────────
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      const cmd = input
+      setInput('')
+      execute(cmd)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const next = Math.min(histIdx + 1, history.length - 1)
+      setHistIdx(next)
+      setInput(history[next] ?? '')
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const next = Math.max(histIdx - 1, -1)
+      setHistIdx(next)
+      setInput(next < 0 ? '' : history[next])
+    } else if (e.key === 'l' && e.ctrlKey) {
+      e.preventDefault()
+      setLines([{ type: 'info', text: 'EFFANT API Terminal  —  type `help` to see available commands' }])
+    }
   }
 
-  function copyCurl() {
-    navigator.clipboard.writeText(buildCurl().replace('…', ''))
-    setCopiedCurl(true)
-    setTimeout(() => setCopiedCurl(false), 2000)
-  }
-
-  function selectEndpoint(id: string) {
-    setSelectedId(id)
-    setResponse(null)
-    setStatus(null)
-    setElapsed(null)
-  }
-
-  const statusColor =
-    status === null ? 'var(--dim)' :
-    status === 0    ? '#f43f5e'    :
-    status < 300    ? '#22c55e'    :
-    status < 400    ? '#f97316'    : '#f43f5e'
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="rounded overflow-hidden"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between px-5 py-3.5"
-        style={{ borderBottom: '1px solid var(--border)' }}>
-        <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#fff' }}>
-          API Terminal
-        </span>
-        <div className="flex items-center gap-3">
-          {elapsed !== null && (
-            <span className="mono text-xs" style={{ color: 'var(--dim)' }}>{elapsed}ms</span>
-          )}
-          {status !== null && (
-            <span className="mono text-xs font-semibold" style={{ color: statusColor }}>
-              {status === 0 ? 'ERR' : status}
-            </span>
-          )}
+    <div
+      className="rounded overflow-hidden"
+      style={{ background: '#060a10', border: '1px solid var(--border)', cursor: 'text' }}
+      onClick={() => inputRef.current?.focus()}
+    >
+      {/* Title bar */}
+      <div
+        className="flex items-center gap-2 px-4 py-2"
+        style={{ background: '#0d1117', borderBottom: '1px solid var(--border)' }}
+      >
+        <div className="flex gap-1.5">
+          <div className="w-3 h-3 rounded-full" style={{ background: '#ff5f57' }} />
+          <div className="w-3 h-3 rounded-full" style={{ background: '#ffbd2e' }} />
+          <div className="w-3 h-3 rounded-full" style={{ background: '#28c840' }} />
         </div>
+        <span className="mono text-xs ml-2" style={{ color: 'var(--dim)', fontSize: 11 }}>
+          effant-api  ·  {tier}
+          {apiKey ? `  ·  key: ${apiKey.slice(0, 10)}…` : '  ·  no key'}
+        </span>
+        <button
+          onClick={e => {
+            e.stopPropagation()
+            setLines([{ type: 'info', text: 'EFFANT API Terminal  —  type `help` to see available commands' }])
+          }}
+          className="mono ml-auto text-xs transition-colors"
+          style={{ color: 'var(--dim)', fontSize: 11 }}
+          onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--dim)')}
+        >
+          clear
+        </button>
       </div>
 
-      <div className="p-5 space-y-4">
-
-        {/* ── Endpoint selector ── */}
-        <div>
-          <p className="mono text-xs uppercase tracking-widest mb-2"
-            style={{ color: 'var(--dim)', fontSize: 10 }}>Endpoint</p>
-          <div className="flex flex-col gap-1">
-            {ENDPOINTS.map(e => {
-              const isLocked = e.tier === 'pro' && tier !== 'pro'
-              const active   = e.id === selectedId
-              return (
-                <button
-                  key={e.id}
-                  onClick={() => selectEndpoint(e.id)}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded text-left transition-all"
-                  style={{
-                    background: active ? 'rgba(91,108,248,0.12)' : 'transparent',
-                    border:     `1px solid ${active ? 'rgba(91,108,248,0.35)' : 'var(--border)'}`,
-                  }}
-                >
-                  <span className="mono text-xs font-bold shrink-0"
-                    style={{ color: active ? 'var(--accent)' : 'var(--dim)', fontSize: 10 }}>
-                    GET
-                  </span>
-                  <span className="mono text-xs flex-1 truncate"
-                    style={{ color: active ? '#fff' : 'var(--muted)' }}>
-                    {e.path}
-                  </span>
-                  <span className="mono shrink-0" style={{ fontSize: 9, color: 'var(--dim)' }}>
-                    {e.ttl}
-                  </span>
-                  {isLocked ? (
-                    <span className="mono text-xs shrink-0" style={{ color: '#f97316' }} title="Pro only">
-                      🔒
-                    </span>
-                  ) : null}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* ── Parameters ── */}
-        {ep.params.length > 0 ? (
-          <div>
-            <p className="mono text-xs uppercase tracking-widest mb-2"
-              style={{ color: 'var(--dim)', fontSize: 10 }}>Parameters</p>
-            <div className="grid gap-2" style={{
-              gridTemplateColumns: ep.params.length >= 2 ? '1fr 1fr' : '1fr',
-            }}>
-              {ep.params.map(p => (
-                <div key={p.name}>
-                  <label className="mono text-xs block mb-1"
-                    style={{ color: 'var(--dim)', fontSize: 10 }}>
-                    {p.label}
-                  </label>
-                  {p.type === 'select' ? (
-                    <select
-                      value={vals[p.name] ?? p.default}
-                      onChange={e => setVal(p.name, e.target.value)}
-                      className="mono"
-                      style={inputStyle}
-                    >
-                      {p.options!.map(o => (
-                        <option key={o} value={o}>{o || 'any'}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      value={vals[p.name] ?? p.default}
-                      onChange={e => setVal(p.name, e.target.value)}
-                      placeholder={p.placeholder}
-                      className="mono"
-                      style={inputStyle}
-                      spellCheck={false}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {/* ── curl preview ── */}
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <p className="mono text-xs uppercase tracking-widest"
-              style={{ color: 'var(--dim)', fontSize: 10 }}>curl</p>
-            <button
-              onClick={copyCurl}
-              className="mono text-xs transition-all"
-              style={{ color: copiedCurl ? '#22c55e' : 'var(--dim)' }}>
-              {copiedCurl ? '✓ copied' : 'copy'}
-            </button>
-          </div>
-          <pre
-            className="rounded px-3 py-2.5 overflow-x-auto mono text-xs leading-relaxed"
-            style={{ background: '#020608', border: '1px solid var(--border)', color: '#64748b' }}>
-            {buildCurl()}
-          </pre>
-        </div>
-
-        {/* ── Run button / locked state / no-key state ── */}
-        {locked ? (
-          <div className="rounded-lg px-4 py-3 flex items-center gap-3"
-            style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)' }}>
-            <span>🔒</span>
-            <div>
-              <p className="mono text-xs font-semibold" style={{ color: '#f97316' }}>Pro endpoint</p>
-              <p className="mono text-xs" style={{ color: 'var(--dim)', marginTop: 2 }}>
-                Upgrade to Pro to access <span style={{ color: '#fff' }}>{ep.path}</span>
-              </p>
-            </div>
-          </div>
-        ) : apiKey === null ? (
-          <div className="rounded px-4 py-3 mono text-xs"
-            style={{ background: '#0c1020', border: '1px solid rgba(91,108,248,0.2)', color: 'var(--dim)' }}>
-            <span style={{ color: 'var(--accent)' }}>↑</span>{' '}
-            Go to <strong style={{ color: '#fff' }}>API Portal</strong> and provision a key — it will be pre-filled here automatically.
-          </div>
-        ) : (
-          <button
-            onClick={run}
-            disabled={loading}
-            className="w-full py-2.5 rounded-lg mono text-xs font-semibold transition-all flex items-center justify-center gap-2"
-            style={{
-              background: loading ? 'rgba(91,108,248,0.3)' : 'var(--accent)',
-              color:  '#fff',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.7 : 1,
-            }}>
-            {loading ? (
-              <>
-                <span style={{ display: 'inline-block', animation: 'spin 0.8s linear infinite' }}>◌</span>
-                Running…
-              </>
-            ) : (
-              <>▶ Run Request</>
-            )}
-          </button>
-        )}
-
-        {/* ── Response panel ── */}
-        {highlightedResponse !== null ? (
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-2">
-                <p className="mono text-xs uppercase tracking-widest"
-                  style={{ color: 'var(--dim)', fontSize: 10 }}>Response</p>
-                {elapsed !== null && (
-                  <span className="mono" style={{ fontSize: 10, color: 'var(--dim)' }}>{elapsed}ms</span>
-                )}
-                <span className="mono text-xs font-semibold" style={{ color: statusColor }}>
-                  {status === 0 ? 'ERR' : status}
-                </span>
+      {/* Output */}
+      <div
+        className="px-4 pt-3 pb-1 overflow-y-auto mono"
+        style={{ minHeight: 300, maxHeight: 540, fontSize: 12, lineHeight: '1.75' }}
+      >
+        {lines.map((line, i) => {
+          if (line.type === 'prompt') {
+            return (
+              <div key={i}>
+                <span style={{ color: '#4ade80', userSelect: 'none' }}>effant</span>
+                <span style={{ color: 'var(--dim)', userSelect: 'none' }}>:~$ </span>
+                <span style={{ color: '#c4b5fd' }}>{line.text}</span>
               </div>
-              <button
-                onClick={copyResponse}
-                className="mono text-xs transition-all"
-                style={{ color: copiedResp ? '#22c55e' : 'var(--dim)' }}>
-                {copiedResp ? '✓ copied' : 'copy'}
-              </button>
-            </div>
+            )
+          }
+          if (line.type === 'status') {
+            return (
+              <div key={i} style={{ color: statusColor(line.text), marginBottom: 4 }}>
+                {line.text}
+              </div>
+            )
+          }
+          if (line.type === 'error') {
+            return (
+              <div key={i} style={{ color: '#f43f5e', marginBottom: 2 }}>{line.text}</div>
+            )
+          }
+          if (line.type === 'output' && line.html) {
+            return (
+              <pre
+                key={i}
+                style={{ color: '#94a3b8', margin: '0 0 8px', whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: 11 }}
+                dangerouslySetInnerHTML={{ __html: line.html }}
+              />
+            )
+          }
+          // info
+          return (
             <pre
-              className="rounded px-4 py-3 overflow-auto mono text-xs leading-relaxed"
-              style={{
-                background: '#020608',
-                border: `1px solid ${status !== null && status >= 400 ? 'rgba(244,63,94,0.3)' : 'var(--border)'}`,
-                maxHeight: 420,
-                color: '#94a3b8',
-              }}
-              dangerouslySetInnerHTML={{ __html: highlightedResponse }}
-            />
-          </div>
-        ) : null}
+              key={i}
+              style={{ color: 'var(--dim)', margin: '0 0 8px', whiteSpace: 'pre-wrap', fontSize: 11 }}
+            >
+              {line.text}
+            </pre>
+          )
+        })}
+        <div ref={bottomRef} />
+      </div>
 
-        {/* Endpoint description */}
-        <p className="mono text-xs" style={{ color: 'var(--dim)', fontSize: 10 }}>
-          {ep.desc} · cached {ep.ttl}
-        </p>
-
+      {/* Input row */}
+      <div
+        className="flex items-center px-4 py-3 mono"
+        style={{ borderTop: '1px solid var(--border)' }}
+      >
+        <span style={{ color: '#4ade80', fontSize: 12, userSelect: 'none', marginRight: 2 }}>effant</span>
+        <span style={{ color: 'var(--dim)', fontSize: 12, userSelect: 'none', marginRight: 8 }}>:~$</span>
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={onKeyDown}
+          spellCheck={false}
+          autoCapitalize="none"
+          autoCorrect="off"
+          autoComplete="off"
+          placeholder="GET /v1/health"
+          autoFocus
+          style={{
+            flex: 1,
+            background: 'transparent',
+            border: 'none',
+            outline: 'none',
+            color: '#c4b5fd',
+            fontSize: 12,
+            fontFamily: 'inherit',
+            caretColor: '#c4b5fd',
+          }}
+        />
       </div>
     </div>
   )
