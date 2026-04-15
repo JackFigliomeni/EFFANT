@@ -691,6 +691,418 @@ function AuthForm({ onAuth, initialMode = 'login', resetToken }: AuthFormProps) 
   )
 }
 
+// ── API Documentation ─────────────────────────────────────────────────────────
+
+interface EndpointDoc {
+  method: 'GET' | 'POST'
+  path: string
+  auth: 'required' | 'public'
+  desc: string
+  params?: { name: string; type: string; required: boolean; desc: string }[]
+  example: string
+  response: string
+}
+
+const ENDPOINTS: EndpointDoc[] = [
+  {
+    method: 'GET',
+    path: '/v1/wallet/{address}',
+    auth: 'required',
+    desc: 'Full profile for a Solana wallet — risk score, entity type, cluster membership, volume stats, and anomaly count.',
+    params: [
+      { name: 'address', type: 'path', required: true, desc: 'Base58 wallet address' },
+    ],
+    example: `curl -H "X-API-Key: YOUR_KEY" \\
+  https://api.effant.io/v1/wallet/7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs`,
+    response: `{
+  "data": {
+    "address": "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs",
+    "label": "Binance Hot Wallet",
+    "entity_type": "exchange",
+    "risk_score": 0.12,
+    "tx_count": 48291,
+    "total_volume_sol": 2847193.4,
+    "volume_24h_sol": 91234.8,
+    "first_seen": "2024-01-15T08:22:00Z",
+    "last_seen": "2024-06-10T14:05:31Z",
+    "anomaly_count": 3,
+    "cluster": { "id": 12, "name": "CEX Cluster A", "wallet_count": 47 }
+  },
+  "meta": { "generated_at": "2024-06-10T14:06:00Z" }
+}`,
+  },
+  {
+    method: 'GET',
+    path: '/v1/wallet/{address}/transactions',
+    auth: 'required',
+    desc: 'Paginated transaction history for a wallet. Returns from/to addresses with labels, SOL amounts, fees, and program IDs.',
+    params: [
+      { name: 'address', type: 'path',  required: true,  desc: 'Base58 wallet address' },
+      { name: 'limit',   type: 'query', required: false, desc: 'Max rows (1–100, default 20)' },
+      { name: 'offset',  type: 'query', required: false, desc: 'Pagination offset (default 0)' },
+    ],
+    example: `curl -H "X-API-Key: YOUR_KEY" \\
+  "https://api.effant.io/v1/wallet/7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs/transactions?limit=5"`,
+    response: `{
+  "data": [
+    {
+      "signature": "3Ax7Yn...",
+      "block_time": "2024-06-10T13:59:01Z",
+      "from_wallet": "7vfCXTUXx5...",
+      "from_label": "Binance Hot Wallet",
+      "to_wallet": "9Xm3pQ...",
+      "to_label": null,
+      "amount_sol": 1250.0,
+      "fee": 0.000005,
+      "success": true,
+      "program_id": "11111111111111111111111111111111"
+    }
+  ],
+  "meta": { "count": 5, "total": 48291, "limit": 5, "offset": 0 }
+}`,
+  },
+  {
+    method: 'GET',
+    path: '/v1/anomalies',
+    auth: 'required',
+    desc: 'Live anomaly feed across all monitored wallets. Filter by type and severity. Sorted by detection time descending.',
+    params: [
+      { name: 'limit',        type: 'query', required: false, desc: 'Max rows (1–200, default 50)' },
+      { name: 'severity',     type: 'query', required: false, desc: 'low | medium | high | critical' },
+      { name: 'anomaly_type', type: 'query', required: false, desc: 'wash_trading | volume_spike | sandwich_attack | whale_movement' },
+    ],
+    example: `curl -H "X-API-Key: YOUR_KEY" \\
+  "https://api.effant.io/v1/anomalies?severity=critical&limit=10"`,
+    response: `{
+  "data": [
+    {
+      "id": 4821,
+      "wallet_address": "3Kzh9f...",
+      "wallet_label": null,
+      "anomaly_type": "sandwich_attack",
+      "severity": "critical",
+      "detected_at": "2024-06-10T13:55:12Z",
+      "description": "Wallet executed sandwich attack on 3 consecutive blocks"
+    }
+  ],
+  "meta": { "count": 10, "total": 4821 }
+}`,
+  },
+  {
+    method: 'GET',
+    path: '/v1/clusters',
+    auth: 'required',
+    desc: 'Coordinated wallet clusters detected by the pipeline. Returns cluster metadata, total volume, and top constituent wallets.',
+    params: [
+      { name: 'limit',       type: 'query', required: false, desc: 'Max clusters (1–50, default 20)' },
+      { name: 'min_wallets', type: 'query', required: false, desc: 'Minimum wallets per cluster (default 2)' },
+    ],
+    example: `curl -H "X-API-Key: YOUR_KEY" \\
+  "https://api.effant.io/v1/clusters?min_wallets=5&limit=10"`,
+    response: `{
+  "data": [
+    {
+      "id": 7,
+      "name": "Wash Cluster #7",
+      "wallet_count": 23,
+      "total_volume": 891234.5,
+      "dominant_type": "bot",
+      "algorithm": "hdbscan",
+      "top_wallets": [
+        { "address": "5fGh2k...", "label": null, "entity_type": "bot", "volume": 48201.3 }
+      ]
+    }
+  ],
+  "meta": { "count": 10 }
+}`,
+  },
+  {
+    method: 'GET',
+    path: '/public/metrics',
+    auth: 'public',
+    desc: 'Aggregated 24-hour market metrics — volume timeline, anomaly breakdown by severity, entity distribution, and key statistics. No API key required.',
+    params: [],
+    example: `curl https://api.effant.io/public/metrics`,
+    response: `{
+  "data": {
+    "key_stats": {
+      "total_vol_24h": 1284930.0,
+      "whale_vol_24h": 482100.0,
+      "whale_pct": 37.5,
+      "total_txs_24h": 29481,
+      "active_wallets_24h": 8821,
+      "anomaly_count_24h": 143,
+      "wash_bot_pct": 8.2,
+      "sandwich_pct": 3.1
+    },
+    "volume_timeline": [{ "hour": "2024-06-10T00:00:00Z", "volume_sol": 52000, "tx_count": 1200, "whale_vol": 18000, "whale_count": 4 }],
+    "anomaly_timeline": [{ "hour": "2024-06-10T00:00:00Z", "critical": 2, "high": 7, "medium": 18, "low": 41 }],
+    "entity_breakdown": [{ "type": "exchange", "count": 142 }, { "type": "bot", "count": 891 }]
+  }
+}`,
+  },
+  {
+    method: 'GET',
+    path: '/public/clusters/{id}/analysis',
+    auth: 'public',
+    desc: 'Deep analysis for a single cluster — activity timeline in 5-minute buckets, top programs used, peak activity, and duration metrics.',
+    params: [
+      { name: 'id', type: 'path', required: true, desc: 'Cluster ID from /v1/clusters' },
+    ],
+    example: `curl https://api.effant.io/public/clusters/7/analysis`,
+    response: `{
+  "data": {
+    "cluster_id": 7,
+    "wallet_count": 23,
+    "total_volume": 891234.5,
+    "duration_minutes": 180,
+    "peak_bucket": { "bucket": "2024-06-10T11:30:00Z", "tx_count": 48, "volume_sol": 12400.0 },
+    "timeline": [{ "bucket": "2024-06-10T11:00:00Z", "tx_count": 12, "volume_sol": 3100.0 }],
+    "top_programs": [{ "program_id": "JUP6Lk...", "count": 291, "label": "Jupiter v6", "pct": 61.2 }]
+  }
+}`,
+  },
+]
+
+function EndpointBadge({ method, auth }: { method: 'GET' | 'POST'; auth: 'required' | 'public' }) {
+  return (
+    <div className="flex items-center gap-2 shrink-0">
+      <span className="mono text-xs font-bold px-2 py-0.5 rounded"
+        style={{
+          background: method === 'GET' ? '#0e3a5c' : '#1e3a0e',
+          color: method === 'GET' ? '#38bdf8' : '#4ade80',
+          border: `1px solid ${method === 'GET' ? '#0284c740' : '#16a34a40'}`,
+        }}>
+        {method}
+      </span>
+      <span className="mono text-xs px-2 py-0.5 rounded"
+        style={{
+          background: auth === 'public' ? '#0f2a1a' : '#1a1a0a',
+          color: auth === 'public' ? '#22c55e' : '#eab308',
+          border: `1px solid ${auth === 'public' ? '#16a34a30' : '#ca8a0430'}`,
+        }}>
+        {auth === 'public' ? 'public' : 'key required'}
+      </span>
+    </div>
+  )
+}
+
+function EndpointCard({ ep }: { ep: EndpointDoc }) {
+  const [open, setOpen]    = useState(false)
+  const [copiedEx, setCopiedEx] = useState(false)
+
+  function copyEx() {
+    navigator.clipboard.writeText(ep.example)
+    setCopiedEx(true)
+    setTimeout(() => setCopiedEx(false), 2000)
+  }
+
+  return (
+    <div className="rounded overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+      {/* Header row */}
+      <button
+        className="w-full text-left flex items-center gap-3 px-5 py-4 transition-colors"
+        style={{ cursor: 'pointer', background: 'transparent' }}
+        onClick={() => setOpen(o => !o)}
+        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.015)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+      >
+        <EndpointBadge method={ep.method} auth={ep.auth} />
+        <span className="mono text-sm font-semibold flex-1 text-left" style={{ color: '#e2e8f0' }}>
+          {ep.path}
+        </span>
+        <span className="mono text-xs hidden sm:block" style={{ color: 'var(--muted)', maxWidth: 320 }}>
+          {ep.desc.length > 72 ? ep.desc.slice(0, 70) + '…' : ep.desc}
+        </span>
+        <span className="mono text-xs ml-4 shrink-0" style={{ color: 'var(--dim)' }}>
+          {open ? '▲' : '▼'}
+        </span>
+      </button>
+
+      {/* Expanded body */}
+      {open && (
+        <div style={{ borderTop: '1px solid var(--border)' }}>
+          <div className="px-5 py-4 space-y-5">
+            <p className="text-sm" style={{ color: 'var(--muted)', lineHeight: 1.6 }}>{ep.desc}</p>
+
+            {ep.params && ep.params.length > 0 && (
+              <div>
+                <p className="mono text-xs uppercase tracking-widest mb-2" style={{ color: 'var(--dim)' }}>Parameters</p>
+                <div className="rounded overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr style={{ background: 'var(--surface2)', borderBottom: '1px solid var(--border)' }}>
+                        {['Name', 'In', 'Required', 'Description'].map(h => (
+                          <th key={h} className="px-3 py-2 mono uppercase tracking-widest"
+                            style={{ color: 'var(--dim)', fontWeight: 600 }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ep.params.map(p => (
+                        <tr key={p.name} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td className="px-3 py-2 mono font-semibold" style={{ color: '#38bdf8' }}>{p.name}</td>
+                          <td className="px-3 py-2 mono" style={{ color: 'var(--muted)' }}>{p.type}</td>
+                          <td className="px-3 py-2 mono" style={{ color: p.required ? 'var(--green)' : 'var(--dim)' }}>
+                            {p.required ? 'yes' : 'no'}
+                          </td>
+                          <td className="px-3 py-2" style={{ color: 'var(--text)' }}>{p.desc}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="mono text-xs uppercase tracking-widest" style={{ color: 'var(--dim)' }}>Request</p>
+                  <button onClick={copyEx} className="mono text-xs transition-colors"
+                    style={{ color: copiedEx ? 'var(--green)' : 'var(--dim)' }}
+                    onMouseEnter={e => { if (!copiedEx) e.currentTarget.style.color = 'var(--muted)' }}
+                    onMouseLeave={e => { if (!copiedEx) e.currentTarget.style.color = 'var(--dim)' }}>
+                    {copiedEx ? 'copied' : 'copy'}
+                  </button>
+                </div>
+                <pre className="rounded px-4 py-3 text-xs overflow-x-auto"
+                  style={{ background: '#050810', border: '1px solid var(--border)', color: '#7dd3fc', lineHeight: 1.7 }}>
+                  {ep.example}
+                </pre>
+              </div>
+              <div>
+                <p className="mono text-xs uppercase tracking-widest mb-2" style={{ color: 'var(--dim)' }}>Response (200)</p>
+                <pre className="rounded px-4 py-3 text-xs overflow-x-auto"
+                  style={{ background: '#050810', border: '1px solid var(--border)', color: '#86efac', lineHeight: 1.7 }}>
+                  {ep.response}
+                </pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ApiDocumentation() {
+  return (
+    <div className="space-y-8">
+      {/* Hero */}
+      <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '2rem' }}>
+        <div className="flex items-start justify-between gap-6 flex-wrap">
+          <div>
+            <h1 style={{
+              fontSize: 'clamp(28px, 4vw, 48px)',
+              fontWeight: 800,
+              lineHeight: 1.1,
+              letterSpacing: '-0.03em',
+              color: '#e2e8f0',
+              fontFamily: 'inherit',
+            }}>
+              REST API
+            </h1>
+            <h2 style={{
+              fontSize: 'clamp(18px, 2.5vw, 28px)',
+              fontWeight: 700,
+              lineHeight: 1.2,
+              letterSpacing: '-0.02em',
+              color: 'var(--accent)',
+              fontFamily: 'inherit',
+              marginTop: 4,
+            }}>
+              exclusively for Solana.
+            </h2>
+            <p className="mt-4 text-sm leading-relaxed" style={{ color: 'var(--muted)', maxWidth: 560 }}>
+              Query wallets, transactions, anomalies, and clusters in real time.
+              Every endpoint returns clean JSON — no third-party wrappers, no Solana RPC rate limits.
+              Data is refreshed continuously by the Effant pipeline as new blocks finalize.
+            </p>
+          </div>
+
+          {/* Quick stats */}
+          <div className="flex gap-3 flex-wrap shrink-0">
+            {[
+              { label: 'Base URL',     value: 'api.effant.io' },
+              { label: 'Format',       value: 'JSON / HTTPS' },
+              { label: 'Auth header',  value: 'X-API-Key' },
+              { label: 'Rate limit',   value: '1 req / sec'   },
+            ].map(s => (
+              <div key={s.label} className="rounded px-3 py-2.5"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)', minWidth: 120 }}>
+                <p className="mono text-xs mb-0.5" style={{ color: 'var(--dim)' }}>{s.label}</p>
+                <p className="mono text-sm font-semibold" style={{ color: '#fff' }}>{s.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* How to authenticate */}
+        <div className="mt-6 rounded p-4"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="mono text-xs uppercase tracking-widest mb-3" style={{ color: 'var(--dim)' }}>Authentication</p>
+          <p className="text-sm mb-3" style={{ color: 'var(--muted)' }}>
+            Pass your API key in the <span className="mono" style={{ color: '#38bdf8' }}>X-API-Key</span> header on
+            every authenticated request. Public endpoints (marked <span className="mono" style={{ color: '#22c55e' }}>public</span>) need no key.
+          </p>
+          <pre className="rounded px-4 py-3 text-xs overflow-x-auto"
+            style={{ background: '#050810', border: '1px solid var(--border)', color: '#7dd3fc', lineHeight: 1.7 }}>
+{`# Authenticated request
+curl -H "X-API-Key: efk_your_key_here" https://api.effant.io/v1/wallet/ADDRESS
+
+# Public request (no key)
+curl https://api.effant.io/public/metrics`}
+          </pre>
+        </div>
+
+        {/* Response shape */}
+        <div className="mt-4 rounded p-4"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="mono text-xs uppercase tracking-widest mb-3" style={{ color: 'var(--dim)' }}>Response envelope</p>
+          <p className="text-sm mb-3" style={{ color: 'var(--muted)' }}>
+            All endpoints return a consistent envelope with a <span className="mono" style={{ color: '#86efac' }}>data</span> field
+            and a <span className="mono" style={{ color: '#86efac' }}>meta</span> field. Errors return a non-2xx status
+            with a JSON <span className="mono" style={{ color: '#f87171' }}>detail</span> field.
+          </p>
+          <pre className="rounded px-4 py-3 text-xs overflow-x-auto"
+            style={{ background: '#050810', border: '1px solid var(--border)', color: '#86efac', lineHeight: 1.7 }}>
+{`// Success
+{ "data": { ... }, "meta": { "count": 1, "generated_at": "2024-06-10T14:00:00Z" } }
+
+// Error
+{ "detail": "Invalid API key" }  // HTTP 401`}
+          </pre>
+        </div>
+      </div>
+
+      {/* Endpoint list */}
+      <div>
+        <p className="mono text-xs uppercase tracking-widest mb-4" style={{ color: 'var(--dim)' }}>
+          Endpoints — click to expand
+        </p>
+        <div className="space-y-2">
+          {ENDPOINTS.map(ep => (
+            <EndpointCard key={ep.path} ep={ep} />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Divider ────────────────────────────────────────────────────────────────────
+
+function Divider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 py-2">
+      <div className="h-px flex-1" style={{ background: 'var(--border)' }} />
+      <span className="mono text-xs uppercase tracking-widest px-2" style={{ color: 'var(--dim)' }}>{label}</span>
+      <div className="h-px flex-1" style={{ background: 'var(--border)' }} />
+    </div>
+  )
+}
+
 // ── Main portal ───────────────────────────────────────────────────────────────
 
 interface CustomerPortalProps {
@@ -749,10 +1161,17 @@ export function CustomerPortal({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
+
+      {/* ── API Documentation (always visible, top of page) ── */}
+      <ApiDocumentation />
+
+      <Divider label="Your account" />
+
+      {/* ── Account header ── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-base font-semibold" style={{ color: '#fff' }}>Customer Portal</h1>
+          <p className="text-sm font-semibold" style={{ color: '#fff' }}>Account</p>
           {me && (
             <p className="mono text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{me.email}</p>
           )}
@@ -778,7 +1197,7 @@ export function CustomerPortal({
           ))}
         </div>
       ) : me ? (
-        <>
+        <div className="space-y-4">
           <KeyCard me={me} onProvisioned={key => {
             localStorage.setItem('effant_api_key', key)
             setApiKey(key)
@@ -787,7 +1206,7 @@ export function CustomerPortal({
           {isPro && <WebhooksPanel />}
           <CallLog />
           <ApiTerminal apiKey={apiKey ?? null} tier={me.api_key?.tier ?? 'starter'} />
-        </>
+        </div>
       ) : (
         <div className="rounded px-5 py-8 text-center text-sm"
           style={{ background: 'var(--surface)', border: '1px solid var(--red)', color: 'var(--red)' }}>
