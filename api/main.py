@@ -919,6 +919,46 @@ async def portal_provision_key(user: dict = _Depends(_current_user)):
     return {"api_key": raw_key, "tier": "starter", "calls_limit": 10000}
 
 
+# POST /portal/rotate-key  — deactivate old key and issue a fresh one
+@app.post("/portal/rotate-key", tags=["portal"])
+async def portal_rotate_key(user: dict = _Depends(_current_user)):
+    existing = _portal_query_one(
+        "SELECT key_hash, tier FROM api_keys WHERE user_id = %s AND active = TRUE",
+        (user["id"],),
+    )
+
+    import secrets as _s
+    from datetime import timedelta
+    raw_key  = "eff_sk_" + _s.token_urlsafe(32)
+    key_hash = _hashlib.sha256(raw_key.encode()).hexdigest()
+    now      = datetime.now(tz=timezone.utc)
+    reset_at = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    tier     = existing["tier"] if existing else "starter"
+    calls_limit = 500_000 if tier == "pro" else 10_000
+
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            if existing:
+                cur.execute(
+                    "UPDATE api_keys SET active = FALSE WHERE user_id = %s AND active = TRUE",
+                    (user["id"],),
+                )
+            cur.execute(
+                """INSERT INTO api_keys
+                   (key_hash, customer_email, tier, calls_today, calls_limit,
+                    created_at, reset_at, active, user_id)
+                   VALUES (%s, %s, %s, 0, %s, NOW(), %s, TRUE, %s)""",
+                (key_hash, user["email"], tier, calls_limit, reset_at, user["id"]),
+            )
+        conn.commit()
+    finally:
+        pool.putconn(conn)
+
+    return {"api_key": raw_key, "tier": tier, "calls_limit": calls_limit}
+
+
 # POST /portal/forgot-password
 class _ForgotBody(BaseModel):
     email: str

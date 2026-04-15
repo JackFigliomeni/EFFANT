@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   signup, login, logout, isLoggedIn,
-  fetchMe, fetchCallLog, provisionKey,
+  fetchMe, fetchCallLog, provisionKey, rotateKey,
   forgotPassword, resetPassword,
   fetchWebhooks, createWebhook, deleteWebhook,
 } from '../api/portal'
@@ -71,6 +71,7 @@ function KeyCard({ me, onProvisioned }: { me: MeData; onProvisioned: (key: strin
   const [copied, setCopied]     = useState(false)
   const [newKey, setNewKey]     = useState<string | null>(null)
   const [revealed, setRevealed] = useState(false)
+  const [rotateErr, setRotateErr] = useState('')
   const storedKey = localStorage.getItem('effant_api_key')
 
   const provision = useMutation({
@@ -80,6 +81,18 @@ function KeyCard({ me, onProvisioned }: { me: MeData; onProvisioned: (key: strin
       onProvisioned(data.api_key)
       qc.invalidateQueries({ queryKey: ['portal-me'] })
     },
+  })
+
+  const rotate = useMutation({
+    mutationFn: rotateKey,
+    onSuccess: (data) => {
+      setRotateErr('')
+      setRevealed(false)
+      setNewKey(data.api_key)
+      onProvisioned(data.api_key)
+      qc.invalidateQueries({ queryKey: ['portal-me'] })
+    },
+    onError: (e) => setRotateErr((e as Error).message),
   })
 
   function copy(text: string) {
@@ -152,16 +165,16 @@ function KeyCard({ me, onProvisioned }: { me: MeData; onProvisioned: (key: strin
             </div>
             {activeKey === '__reprovision__' ? (
               <button
-                onClick={() => { setRevealed(false); provision.mutate() }}
-                disabled={provision.isPending}
+                onClick={() => rotate.mutate()}
+                disabled={rotate.isPending}
                 className="rounded px-3 py-2.5 text-xs font-semibold whitespace-nowrap transition-all"
                 style={{
                   background: 'var(--accent)',
                   color: '#fff',
-                  opacity: provision.isPending ? 0.6 : 1,
+                  opacity: rotate.isPending ? 0.6 : 1,
                   flexShrink: 0,
                 }}>
-                {provision.isPending ? 'Generating…' : 'Re-provision'}
+                {rotate.isPending ? 'Generating…' : 'Re-provision'}
               </button>
             ) : activeKey ? (
               <button onClick={() => copy(activeKey)}
@@ -175,6 +188,11 @@ function KeyCard({ me, onProvisioned }: { me: MeData; onProvisioned: (key: strin
               </button>
             ) : null}
           </div>
+          {rotateErr && (
+            <p className="mono text-xs mt-1.5" style={{ color: 'var(--red)' }}>
+              {rotateErr}
+            </p>
+          )}
         </div>
 
         {key && (

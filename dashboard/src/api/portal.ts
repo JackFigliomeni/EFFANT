@@ -86,6 +86,11 @@ export const provisionKey = () =>
     method: 'POST',
   })
 
+export const rotateKey = () =>
+  portalFetch<{ api_key: string; tier: string; calls_limit: number }>('/portal/rotate-key', {
+    method: 'POST',
+  })
+
 // ── Forgot / reset password ───────────────────────────────────────────────────
 
 export const forgotPassword = (email: string) =>
