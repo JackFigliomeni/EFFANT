@@ -72,7 +72,7 @@ export function ApiTerminal({
     { type: 'info', text: 'EFFANT API Terminal  —  type `help` to see available commands' },
     ...(apiKey
       ? []
-      : [{ type: 'error' as LineType, text: '⚠  No API key found. Go to API Portal → provision a key, then come back.' }]),
+      : [{ type: 'error' as LineType, text: 'No API key found. Go to API Portal, provision a key, then come back.' }]),
   ]
 
   const [lines, setLines]     = useState<Line[]>(initLines)

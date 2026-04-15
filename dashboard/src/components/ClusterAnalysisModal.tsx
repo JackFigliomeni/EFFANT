@@ -208,7 +208,6 @@ function PaywallOverlay() {
         boxShadow: '0 16px 48px #00000090',
         maxWidth: 300,
       }}>
-        <div className="mono text-2xl mb-3">🔒</div>
         <h3 className="font-semibold text-sm mb-2" style={{ color: '#fff' }}>Pro Feature</h3>
         <p className="mono text-xs mb-5" style={{ color: 'var(--muted)', lineHeight: 1.7 }}>
           Market Impact Analysis is available on the <strong style={{ color: 'var(--accent)' }}>Pro plan</strong>.

@@ -28,7 +28,6 @@ export function TerminalPage({ onGoPortal }: TerminalPageProps) {
           maxWidth: 380,
           width: '100%',
         }}>
-          <p className="mono text-2xl mb-3">⌨</p>
           <h2 className="font-semibold text-sm mb-2" style={{ color: '#fff' }}>API Terminal</h2>
           <p className="text-xs mb-6" style={{ color: 'var(--muted)', lineHeight: 1.7 }}>
             Sign in to run live requests against the EFFANT API.

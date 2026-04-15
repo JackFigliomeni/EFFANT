@@ -51,7 +51,7 @@ function CheckoutSuccessBanner({ onDismiss }: { onDismiss: () => void }) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="font-semibold mb-1" style={{ color: '#22c55e' }}>
-            ✓ Payment successful — welcome to EFFANT
+            Payment successful — welcome to EFFANT
           </p>
           <p className="text-sm" style={{ color: '#86efac' }}>
             Your subscription is now active. Your API key is ready below — copy it now, it won't be shown again.
@@ -114,7 +114,7 @@ function KeyCard({ me, onProvisioned }: { me: MeData; onProvisioned: (key: strin
   }
 
   const key = me.api_key
-  const activeKey  = newKey ?? (revealed ? storedKey : null)
+  const activeKey  = newKey ?? (revealed ? (storedKey ?? '__reprovision__') : null)
   const showBanner = !!newKey
 
   return (
@@ -123,9 +123,9 @@ function KeyCard({ me, onProvisioned }: { me: MeData; onProvisioned: (key: strin
         <div>
           <div className="flex items-center justify-between mb-2">
             <p className="mono text-xs" style={{ color: 'var(--muted)' }}>
-              {showBanner ? '⚠  Copy this key now' : 'Your API key'}
+              {showBanner ? 'Copy this key now' : 'Your API key'}
             </p>
-            {!newKey && storedKey && (
+            {!newKey && me.has_key && (
               <button
                 onClick={() => setRevealed(r => !r)}
                 className="mono text-xs transition-colors"
@@ -133,7 +133,7 @@ function KeyCard({ me, onProvisioned }: { me: MeData; onProvisioned: (key: strin
                 onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
                 onMouseLeave={e => (e.currentTarget.style.color = revealed ? 'var(--accent)' : 'var(--dim)')}
               >
-                {revealed ? '🙈 hide' : '👁 reveal'}
+                {revealed ? 'hide' : 'reveal'}
               </button>
             )}
           </div>
@@ -141,14 +141,16 @@ function KeyCard({ me, onProvisioned }: { me: MeData; onProvisioned: (key: strin
             <div className="flex-1 rounded px-3 py-2.5 mono text-sm overflow-x-auto"
               style={{
                 background: 'var(--surface2)',
-                border: `1px solid ${activeKey ? '#eab30840' : 'var(--border)'}`,
-                color: activeKey ? '#eab308' : 'var(--muted)',
+                border: `1px solid ${activeKey && activeKey !== '__reprovision__' ? '#eab30840' : 'var(--border)'}`,
+                color: activeKey && activeKey !== '__reprovision__' ? '#eab308' : 'var(--muted)',
                 whiteSpace: 'nowrap',
-                letterSpacing: activeKey ? '0.03em' : undefined,
+                letterSpacing: activeKey && activeKey !== '__reprovision__' ? '0.03em' : undefined,
               }}>
-              {activeKey ?? '••••••••••••••••••••••••••••••••'}
+              {activeKey === '__reprovision__'
+                ? 'Key not cached locally — revoke and re-provision to get a new one'
+                : (activeKey ?? '••••••••••••••••••••••••••••••••')}
             </div>
-            {activeKey && (
+            {activeKey && activeKey !== '__reprovision__' && (
               <button onClick={() => copy(activeKey)}
                 className="rounded px-3 py-2.5 text-xs font-semibold whitespace-nowrap transition-all"
                 style={{
@@ -156,7 +158,7 @@ function KeyCard({ me, onProvisioned }: { me: MeData; onProvisioned: (key: strin
                   border: `1px solid ${copied ? '#22c55e40' : 'var(--border)'}`,
                   color: copied ? '#22c55e' : 'var(--text)',
                 }}>
-                {copied ? '✓ Copied' : 'Copy'}
+                {copied ? 'Copied' : 'Copy'}
               </button>
             )}
           </div>
@@ -333,7 +335,7 @@ function WebhooksPanel() {
         {newSecret && (
           <div className="rounded p-4" style={{ background: '#052e16', border: '1px solid #16a34a40' }}>
             <p className="mono text-xs mb-2" style={{ color: '#22c55e' }}>
-              ⚠ Copy your signing secret now — it won't be shown again
+              Copy your signing secret now — it won't be shown again
             </p>
             <div className="flex items-center gap-2">
               <div className="flex-1 rounded px-3 py-2 mono text-xs overflow-x-auto"
