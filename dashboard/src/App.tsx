@@ -34,6 +34,10 @@ export default function App() {
     if (resetToken || checkoutSuccess || goPortal) clearUrlParams()
   }, [])
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }, [page])
+
   function handleGetStarted(_tier: 'starter' | 'pro') {
     setPage('portal')
   }
@@ -58,9 +62,9 @@ export default function App() {
   }
 
   return (
-    <Layout page={page} onNav={p => { setPage(p); window.scrollTo({ top: 0 }) }} onSignOut={() => setPage('landing')}>
-      {page === 'overview'  && <Overview  onGoMetrics={() => { setPage('metrics'); window.scrollTo({ top: 0 }) }} />}
-      {page === 'metrics'   && <MetricsPage onGoOverview={() => { setPage('overview'); window.scrollTo({ top: 0 }) }} />}
+    <Layout page={page} onNav={p => setPage(p)} onSignOut={() => setPage('landing')}>
+      {page === 'overview'  && <Overview  onGoMetrics={() => setPage('metrics')} />}
+      {page === 'metrics'   && <MetricsPage onGoOverview={() => setPage('overview')} />}
       {page === 'explorer'  && <WalletExplorer />}
       {page === 'terminal'  && <TerminalPage onGoPortal={() => setPage('portal')} />}
       {page === 'portal'    && (
