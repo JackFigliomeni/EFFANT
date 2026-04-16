@@ -7,7 +7,6 @@ import {
   fetchWebhooks, createWebhook, deleteWebhook,
 } from '../api/portal'
 import type { MeData, Webhook } from '../api/portal'
-import { BillingPanel } from '../components/BillingPanel'
 import { ApiTerminal } from '../components/ApiTerminal'
 import { createCheckoutSession } from '../api/billing'
 import type { BillingTier } from '../api/billing'
@@ -1363,7 +1362,7 @@ export function CustomerPortal({
     qc.clear()
   }, [qc])
 
-  const isPro = me?.api_key?.tier === 'pro'
+  const isPro = ['analyst', 'analyst_pro', 'fund', 'enterprise', 'pro'].includes(me?.api_key?.tier ?? '')
 
   if (!authed) {
     return (
@@ -1412,12 +1411,11 @@ export function CustomerPortal({
           ))}
         </div>
       ) : me ? (
-        <div className="space-y-4">
+        <div className="space-y-6">
           <KeyCard me={me} onProvisioned={key => {
             localStorage.setItem('effant_api_key', key)
             setApiKey(key)
           }} />
-          <BillingPanel authed={authed} />
           {isPro && <WebhooksPanel />}
           <CallLog />
           <ApiTerminal apiKey={apiKey ?? null} tier={me.api_key?.tier ?? 'starter'} />

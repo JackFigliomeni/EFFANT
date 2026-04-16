@@ -35,7 +35,9 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' })
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+    window.scrollTo(0, 0)
   }, [page])
 
   function handleGetStarted(_tier: string) {

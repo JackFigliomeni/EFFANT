@@ -62,20 +62,37 @@ DEFAULT_RESOLUTION = 1.0
 
 # Only cluster on recent transactions to bound memory usage.
 # Full-history clustering would require too much RAM for the graph.
-CLUSTER_WINDOW_HOURS = 48
+CLUSTER_WINDOW_HOURS = 168   # 7 days — anchored to MAX(block_time) below
+
+
+def _anchor_ts(conn) -> str:
+    """Return ISO timestamp of the most recent successful transaction, or NOW()."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT MAX(block_time) AS latest FROM transactions "
+            "WHERE success = TRUE AND amount_sol > 0"
+        )
+        row = cur.fetchone()
+    latest = row[0] if row and row[0] else None
+    if latest:
+        log.info(f"Clustering anchored to latest block_time: {latest.isoformat()}")
+        return f"'{latest.isoformat()}'"
+    return "NOW()"
 
 
 def load_hub_addresses(conn) -> set[str]:
     """Destinations receiving from more than HUB_MAX_SENDERS unique wallets."""
+    anchor = _anchor_ts(conn)
     with conn.cursor() as cur:
-        cur.execute("""
+        cur.execute(f"""
             SELECT to_wallet
             FROM transactions
             WHERE success = true
-              AND block_time > NOW() - INTERVAL '%s hours'
+              AND block_time > {anchor}::timestamptz - INTERVAL '{CLUSTER_WINDOW_HOURS} hours'
+              AND block_time <= {anchor}::timestamptz
             GROUP BY to_wallet
             HAVING COUNT(DISTINCT from_wallet) > %s
-        """, (CLUSTER_WINDOW_HOURS, HUB_MAX_SENDERS))
+        """, (HUB_MAX_SENDERS,))
         hubs = {row[0] for row in cur.fetchall()}
     log.info(f"Identified {len(hubs)} hub addresses (excluded from co-input)")
     return hubs
@@ -88,18 +105,19 @@ def load_co_input_edges(conn, hubs: set[str]) -> dict[tuple[str, str], float]:
     to the edge between every pair in that group.
     Pairs are enumerated in Python to avoid a large SQL self-join.
     """
-    # Load groups from recent window only to keep graph in memory
+    anchor = _anchor_ts(conn)
     with conn.cursor() as cur:
-        cur.execute("""
+        cur.execute(f"""
             SELECT block_time, to_wallet, ARRAY_AGG(DISTINCT from_wallet) AS senders
             FROM transactions
             WHERE success = true
               AND to_wallet != from_wallet
-              AND block_time > NOW() - INTERVAL '%s hours'
+              AND block_time > {anchor}::timestamptz - INTERVAL '{CLUSTER_WINDOW_HOURS} hours'
+              AND block_time <= {anchor}::timestamptz
             GROUP BY block_time, to_wallet
             HAVING COUNT(DISTINCT from_wallet) >= 2
             ORDER BY block_time, to_wallet
-        """, (CLUSTER_WINDOW_HOURS,))
+        """)
         rows = cur.fetchall()
 
     edge_weights: dict[tuple[str, str], float] = defaultdict(float)
@@ -129,16 +147,18 @@ def load_deposit_edges(conn) -> dict[tuple[str, str], float]:
     Deposit pattern: wallets that repeatedly send to the same destination.
     Edge weight = number of repeat sends (capped at 50 to limit hub dominance).
     """
+    anchor = _anchor_ts(conn)
     with conn.cursor() as cur:
-        cur.execute("""
+        cur.execute(f"""
             SELECT from_wallet, to_wallet, COUNT(*) AS repeat_count
             FROM transactions
             WHERE success = true
-              AND block_time > NOW() - INTERVAL '%s hours'
+              AND block_time > {anchor}::timestamptz - INTERVAL '{CLUSTER_WINDOW_HOURS} hours'
+              AND block_time <= {anchor}::timestamptz
               AND from_wallet != to_wallet
             GROUP BY from_wallet, to_wallet
             HAVING COUNT(*) >= %s
-        """, (CLUSTER_WINDOW_HOURS, DEPOSIT_MIN_REPEAT))
+        """, (DEPOSIT_MIN_REPEAT,))
         rows = cur.fetchall()
 
     edge_weights: dict[tuple[str, str], float] = defaultdict(float)
