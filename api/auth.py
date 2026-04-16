@@ -7,15 +7,19 @@ Flow per request
   2. Extract X-API-Key header → reject 401 if missing
   3. SHA-256 hash the raw key → look up in api_keys table
   4. Reject 401 if not found or inactive
-  5. Reset calls_today if reset_at has passed (new calendar day)
+  5. Reset calls_today if reset_at has passed (new billing period)
   6. Reject 429 if calls_today >= calls_limit
   7. Increment calls_today + update last_used_at atomically
   8. Attach key record to request.state for downstream logging
 
-Tier limits (calls/day)
-────────────────────────
-  starter :   10,000
-  pro     :  500,000
+Tier limits (calls/month)
+──────────────────────────
+  starter      :        0
+  analyst      :      500
+  analyst_pro  :   10,000
+  fund         :  100,000
+  enterprise   : 1,000,000
+  pro          :  500,000  (legacy)
 """
 
 import hashlib
@@ -35,8 +39,12 @@ log = logging.getLogger("effant.auth")
 PUBLIC_PATHS = {"/health", "/docs", "/redoc", "/openapi.json", "/favicon.ico"}
 
 TIER_LIMITS: dict[str, int] = {
-    "starter":    10_000,
-    "pro":       500_000,
+    "starter":      0,
+    "analyst":      500,
+    "analyst_pro":  10_000,
+    "fund":         100_000,
+    "enterprise":   1_000_000,
+    "pro":          500_000,   # legacy
 }
 
 
@@ -190,10 +198,10 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
                 reset_at = reset_at.replace(tzinfo=timezone.utc)
 
             if now >= reset_at:
-                # Advance reset_at by whole days until it's in the future
+                # Advance reset_at by whole billing periods (30 days) until it's in the future
                 from datetime import timedelta
                 while reset_at <= now:
-                    reset_at = reset_at + timedelta(days=1)
+                    reset_at = reset_at + timedelta(days=30)
                 cur.execute("""
                     UPDATE api_keys
                     SET calls_today  = 1,

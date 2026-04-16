@@ -9,6 +9,8 @@ import {
 import type { MeData, Webhook } from '../api/portal'
 import { BillingPanel } from '../components/BillingPanel'
 import { ApiTerminal } from '../components/ApiTerminal'
+import { createCheckoutSession } from '../api/billing'
+import type { BillingTier } from '../api/billing'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -199,10 +201,10 @@ function KeyCard({ me, onProvisioned }: { me: MeData; onProvisioned: (key: strin
           <>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: 'Tier',        value: key.tier.charAt(0).toUpperCase() + key.tier.slice(1) },
-                { label: 'Calls today', value: key.calls_today.toLocaleString() },
-                { label: 'Daily limit', value: key.calls_limit.toLocaleString() },
-                { label: 'Last used',   value: relTime(key.last_used_at) },
+                { label: 'Tier',             value: key.tier.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) },
+                { label: 'Calls this month', value: key.calls_today.toLocaleString() },
+                { label: 'Monthly limit',    value: key.calls_limit.toLocaleString() },
+                { label: 'Last used',        value: relTime(key.last_used_at) },
               ].map(({ label, value }) => (
                 <div key={label} className="rounded px-3 py-2.5"
                   style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}>
@@ -214,26 +216,33 @@ function KeyCard({ me, onProvisioned }: { me: MeData; onProvisioned: (key: strin
 
             <div>
               <div className="flex justify-between text-xs mono mb-1.5">
-                <span style={{ color: 'var(--muted)' }}>Usage today</span>
+                <span style={{ color: 'var(--muted)' }}>Usage this month</span>
                 <span style={{ color: 'var(--text)' }}>
                   {key.calls_today.toLocaleString()} / {key.calls_limit.toLocaleString()}
-                  <span style={{ color: 'var(--muted)' }} className="ml-2">
-                    ({((key.calls_today / key.calls_limit) * 100).toFixed(1)}%)
-                  </span>
+                  {key.calls_limit > 0 && (
+                    <span style={{ color: 'var(--muted)' }} className="ml-2">
+                      ({((key.calls_today / key.calls_limit) * 100).toFixed(1)}%)
+                    </span>
+                  )}
                 </span>
               </div>
               <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border2)' }}>
                 <div className="h-1.5 rounded-full transition-all duration-700"
                   style={{
-                    width: `${Math.min((key.calls_today / key.calls_limit) * 100, 100)}%`,
-                    background: key.calls_today / key.calls_limit > 0.9
-                      ? 'var(--red)' : key.calls_today / key.calls_limit > 0.7
+                    width: key.calls_limit > 0 ? `${Math.min((key.calls_today / key.calls_limit) * 100, 100)}%` : '0%',
+                    background: key.calls_limit > 0 && key.calls_today / key.calls_limit > 0.9
+                      ? 'var(--red)' : key.calls_limit > 0 && key.calls_today / key.calls_limit > 0.7
                       ? 'var(--yellow)' : 'var(--accent)',
                   }} />
               </div>
-              <p className="mono text-xs mt-1" style={{ color: 'var(--dim)' }}>
-                Resets {relTime(key.reset_at)} · {(key.calls_limit - key.calls_today).toLocaleString()} remaining
-              </p>
+              {(() => {
+                const remaining = Math.max(0, key.calls_limit - key.calls_today)
+                return (
+                  <p className="mono text-xs mt-1" style={{ color: 'var(--dim)' }}>
+                    Resets {relTime(key.reset_at)} · {remaining.toLocaleString()} remaining
+                  </p>
+                )
+              })()}
             </div>
           </>
         )}
@@ -903,6 +912,170 @@ const ENDPOINTS: EndpointDoc[] = [
   },
 ]
 
+// ── Pricing Section (inside ApiDocumentation) ─────────────────────────────────
+
+const PORTAL_PLANS = [
+  {
+    tier: 'starter', name: 'Starter', price: '$20', period: '/mo',
+    api: 'No REST API', highlight: false, badge: undefined as string | undefined,
+    features: ['Live overview dashboard', 'Metrics charts & whale markers', 'Anomaly feed with detail view', 'Entity cluster explorer', 'Wallet Explorer'],
+  },
+  {
+    tier: 'analyst', name: 'Analyst', price: '$100', period: '/mo',
+    api: '500 req / month', highlight: true, badge: 'Most Popular' as string | undefined,
+    features: ['Everything in Starter', 'API Terminal', 'REST API — 500 req/mo', 'Webhook alerts', 'Wallet profiling'],
+  },
+  {
+    tier: 'analyst_pro', name: 'Analyst Pro', price: '$500', period: '/mo',
+    api: '10,000 req / month', highlight: false, badge: undefined as string | undefined,
+    features: ['Everything in Analyst', 'REST API — 10,000 req/mo', 'Priority support', 'Sub-second cache TTL'],
+  },
+  {
+    tier: 'fund', name: 'Fund', price: '$1,200', period: '/mo',
+    api: '100,000 req / month', highlight: false, badge: undefined as string | undefined,
+    features: ['Everything in Analyst Pro', 'REST API — 100,000 req/mo', 'SLA guarantee', 'Dedicated onboarding', 'Custom thresholds'],
+  },
+]
+
+const ENTERPRISE_PORTAL_FEATURES = [
+  'Custom API request limits',
+  'Dedicated infrastructure',
+  'Custom pipelines & integrations',
+  'White-label options',
+  'Direct engineering support',
+  'Pricing based on requirements',
+]
+
+function PricingSection() {
+  const [loadingTier, setLoadingTier] = useState<string | null>(null)
+
+  async function handleCheckout(tier: BillingTier) {
+    setLoadingTier(tier)
+    try {
+      const { url } = await createCheckoutSession(tier)
+      window.location.href = url
+    } catch {
+      setLoadingTier(null)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <p className="mono text-xs uppercase tracking-widest" style={{ color: 'var(--dim)' }}>
+        Plans &amp; Pricing
+      </p>
+
+      {/* 2×2 grid (4 purchasable plans) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {PORTAL_PLANS.map(plan => (
+          <div
+            key={plan.tier}
+            className="rounded-lg flex flex-col overflow-hidden"
+            style={{
+              background: plan.highlight ? '#0f1629' : 'var(--surface)',
+              border: `1px solid ${plan.highlight ? '#5b6cf8' : 'var(--border)'}`,
+              boxShadow: plan.highlight ? '0 0 30px #5b6cf815' : 'none',
+            }}
+          >
+            {plan.badge && (
+              <div
+                className="text-center py-1 text-xs font-semibold mono tracking-widest uppercase"
+                style={{ background: '#5b6cf8', color: '#fff' }}
+              >
+                {plan.badge}
+              </div>
+            )}
+            <div className="p-5 flex flex-col flex-1">
+              <p className="mono text-xs uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>
+                {plan.name}
+              </p>
+              <div className="flex items-baseline gap-1 mb-1">
+                <span className="mono font-bold" style={{ fontSize: 24, color: '#fff' }}>{plan.price}</span>
+                <span className="text-xs" style={{ color: 'var(--muted)' }}>{plan.period}</span>
+              </div>
+              <span
+                className="mono text-xs px-2 py-0.5 rounded self-start mb-4"
+                style={{
+                  background: plan.highlight ? '#5b6cf820' : 'var(--surface2)',
+                  color: plan.highlight ? '#5b6cf8' : 'var(--muted)',
+                  border: `1px solid ${plan.highlight ? '#5b6cf840' : 'var(--border)'}`,
+                }}
+              >
+                {plan.api}
+              </span>
+              <ul className="space-y-2 mb-5 flex-1">
+                {plan.features.map(f => (
+                  <li key={f} className="flex items-start gap-2 text-xs" style={{ color: 'var(--muted)' }}>
+                    <span style={{ color: '#22c55e', flexShrink: 0 }}>✓</span> {f}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => handleCheckout(plan.tier as BillingTier)}
+                disabled={loadingTier === plan.tier}
+                className="w-full rounded py-2 text-xs font-semibold transition-all"
+                style={{
+                  background: plan.highlight ? '#5b6cf8' : 'var(--surface2)',
+                  border: `1px solid ${plan.highlight ? '#5b6cf8' : 'var(--border2)'}`,
+                  color: '#fff',
+                  opacity: loadingTier === plan.tier ? 0.6 : 1,
+                }}
+              >
+                {loadingTier === plan.tier ? 'Redirecting…' : `Subscribe — ${plan.price}/mo`}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Enterprise card — full width */}
+      <div
+        className="rounded-lg p-6"
+        style={{
+          background: '#0a0800',
+          border: '1px solid #ca8a04',
+          boxShadow: '0 0 30px #ca8a0410',
+        }}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-6">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-2">
+              <p className="mono text-xs uppercase tracking-widest font-bold" style={{ color: '#ca8a04' }}>Enterprise</p>
+              <span
+                className="mono text-xs px-2 py-0.5 rounded"
+                style={{ background: '#ca8a0420', color: '#ca8a04', border: '1px solid #ca8a0440' }}
+              >
+                Custom limits
+              </span>
+            </div>
+            <div className="flex items-baseline gap-1 mb-4">
+              <span className="mono font-bold" style={{ fontSize: 24, color: '#fff' }}>Custom</span>
+              <span className="text-xs" style={{ color: 'var(--muted)' }}>pricing</span>
+            </div>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {ENTERPRISE_PORTAL_FEATURES.map(f => (
+                <li key={f} className="flex items-start gap-2 text-xs" style={{ color: 'var(--muted)' }}>
+                  <span style={{ color: '#ca8a04', flexShrink: 0 }}>✓</span> {f}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="flex flex-col items-end gap-3 shrink-0">
+            <p className="mono text-xs" style={{ color: 'var(--dim)' }}>Contact us</p>
+            <a
+              href="mailto:billing@effant.tech"
+              className="rounded px-5 py-2 mono text-xs font-semibold"
+              style={{ background: 'transparent', border: '1px solid #ca8a04', color: '#ca8a04' }}
+            >
+              billing@effant.tech
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function EndpointBadge({ method, auth }: { method: 'GET' | 'POST'; auth: 'required' | 'public' }) {
   return (
     <div className="flex items-center gap-2 shrink-0">
@@ -1126,6 +1299,9 @@ curl ${API_BASE}/public/metrics`}
           ))}
         </div>
       </div>
+
+      {/* Pricing */}
+      <PricingSection />
     </div>
   )
 }

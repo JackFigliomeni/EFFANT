@@ -27,7 +27,9 @@ export interface Subscription {
 export const fetchSubscription = () =>
   billingFetch<Subscription>('/billing/subscription')
 
-export const createCheckoutSession = (tier: 'starter' | 'pro') =>
+export type BillingTier = 'starter' | 'analyst' | 'analyst_pro' | 'fund'
+
+export const createCheckoutSession = (tier: BillingTier) =>
   billingFetch<{ url: string; session_id: string }>('/billing/create-checkout-session', {
     method: 'POST',
     body: JSON.stringify({ tier }),

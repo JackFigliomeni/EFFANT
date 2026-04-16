@@ -1061,11 +1061,16 @@ async def portal_provision_key(user: dict = _Depends(_current_user)):
         raise HTTPException(409, "You already have an active API key")
 
     import secrets as _s
-    from datetime import timedelta
     raw_key  = "eff_sk_" + _s.token_urlsafe(32)
     key_hash = _hashlib.sha256(raw_key.encode()).hexdigest()
     now      = datetime.now(tz=timezone.utc)
-    reset_at = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    # First day of next calendar month at midnight UTC
+    if now.month == 12:
+        reset_at = now.replace(year=now.year + 1, month=1, day=1,
+                               hour=0, minute=0, second=0, microsecond=0)
+    else:
+        reset_at = now.replace(month=now.month + 1, day=1,
+                               hour=0, minute=0, second=0, microsecond=0)
 
     pool = get_pool()
     conn = pool.getconn()
@@ -1075,14 +1080,14 @@ async def portal_provision_key(user: dict = _Depends(_current_user)):
                 """INSERT INTO api_keys
                    (key_hash, customer_email, tier, calls_today, calls_limit,
                     created_at, reset_at, active, user_id)
-                   VALUES (%s, %s, 'starter', 0, 10000, NOW(), %s, TRUE, %s)""",
+                   VALUES (%s, %s, 'starter', 0, 0, NOW(), %s, TRUE, %s)""",
                 (key_hash, user["email"], reset_at, user["id"]),
             )
         conn.commit()
     finally:
         pool.putconn(conn)
 
-    return {"api_key": raw_key, "tier": "starter", "calls_limit": 10000}
+    return {"api_key": raw_key, "tier": "starter", "calls_limit": 0}
 
 
 # POST /portal/rotate-key  — deactivate old key and issue a fresh one
@@ -1094,13 +1099,19 @@ async def portal_rotate_key(user: dict = _Depends(_current_user)):
     )
 
     import secrets as _s
-    from datetime import timedelta
     raw_key  = "eff_sk_" + _s.token_urlsafe(32)
     key_hash = _hashlib.sha256(raw_key.encode()).hexdigest()
     now      = datetime.now(tz=timezone.utc)
-    reset_at = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    # First day of next calendar month at midnight UTC
+    if now.month == 12:
+        reset_at = now.replace(year=now.year + 1, month=1, day=1,
+                               hour=0, minute=0, second=0, microsecond=0)
+    else:
+        reset_at = now.replace(month=now.month + 1, day=1,
+                               hour=0, minute=0, second=0, microsecond=0)
     tier     = existing["tier"] if existing else "starter"
-    calls_limit = 500_000 if tier == "pro" else 10_000
+    TIER_LIMITS = {"starter": 0, "analyst": 500, "analyst_pro": 10_000, "fund": 100_000, "enterprise": 1_000_000}
+    calls_limit = TIER_LIMITS.get(tier, 0)
 
     pool = get_pool()
     conn = pool.getconn()

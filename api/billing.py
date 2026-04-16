@@ -22,14 +22,18 @@ Setup
        STRIPE_SECRET_KEY=sk_test_...
        STRIPE_WEBHOOK_SECRET=whsec_...
        STRIPE_STARTER_PRICE_ID=price_...
-       STRIPE_PRO_PRICE_ID=price_...
+       STRIPE_ANALYST_PRICE_ID=price_...
+       STRIPE_ANALYST_PRO_PRICE_ID=price_...
+       STRIPE_FUND_PRICE_ID=price_...
        SENDGRID_API_KEY=SG...
        SENDGRID_FROM_EMAIL=billing@effant.io
        FRONTEND_URL=http://localhost:5173
 
   2. Create products in Stripe dashboard (test mode):
-       Starter      $499/month
-       Professional $4,900/month
+       Starter      $20/month
+       Analyst      $100/month
+       Analyst Pro  $500/month
+       Fund         $1,200/month
      Copy the Price IDs into .env.
 
   3. Register webhook in Stripe dashboard:
@@ -69,7 +73,15 @@ def _frontend_url()  -> str: return _cfg("FRONTEND_URL", "http://localhost:5173"
 def _price_id(tier: str) -> str:
     return _cfg(f"STRIPE_{tier.upper()}_PRICE_ID")
 
-TIER_LIMITS = {"starter": 10_000, "pro": 500_000}
+TIER_LIMITS = {
+    "starter":      0,
+    "analyst":      500,
+    "analyst_pro":  10_000,
+    "fund":         100_000,
+    "enterprise":   1_000_000,
+}
+
+ALL_TIERS = ("starter", "analyst", "analyst_pro", "fund", "enterprise")
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
@@ -153,9 +165,16 @@ def _send_welcome_email(email: str, tier: str, api_key: str) -> None:
         log.warning("SENDGRID_API_KEY not set — skipping welcome email")
         return
 
-    tier_display = "Starter" if tier == "starter" else "Professional"
-    limit        = TIER_LIMITS[tier]
-    price        = "$499/month" if tier == "starter" else "$4,900/month"
+    tier_display = tier.replace("_", " ").title()
+    limit        = TIER_LIMITS.get(tier, 0)
+    _price_map   = {
+        "starter":      "$20/month",
+        "analyst":      "$100/month",
+        "analyst_pro":  "$500/month",
+        "fund":         "$1,200/month",
+        "enterprise":   "Custom",
+    }
+    price        = _price_map.get(tier, "Contact us")
     frontend     = _frontend_url()
     from_addr    = _from_email()
 
@@ -181,8 +200,8 @@ def _send_welcome_email(email: str, tier: str, api_key: str) -> None:
           <td style="color: #fff; font-size: 12px; text-align: right;">{tier_display}</td>
         </tr>
         <tr style="border-bottom: 1px solid #1e2635;">
-          <td style="color: #64748b; font-size: 12px; padding: 8px 0;">Daily limit</td>
-          <td style="color: #fff; font-size: 12px; text-align: right;">{limit:,} calls/day</td>
+          <td style="color: #64748b; font-size: 12px; padding: 8px 0;">Monthly limit</td>
+          <td style="color: #fff; font-size: 12px; text-align: right;">{limit:,} req/month</td>
         </tr>
         <tr>
           <td style="color: #64748b; font-size: 12px; padding: 8px 0;">Billing</td>
@@ -252,10 +271,15 @@ def _provision_api_key(user_id: int, email: str, tier: str) -> str:
     """Create or upgrade an API key for a user. Returns the raw key."""
     raw_key  = "eff_sk_" + secrets.token_urlsafe(32)
     key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
-    limit    = TIER_LIMITS[tier]
-    reset_at = (datetime.now(tz=timezone.utc) + timedelta(days=1)).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
+    limit    = TIER_LIMITS.get(tier, 0)
+    now      = datetime.now(tz=timezone.utc)
+    # First day of next calendar month at midnight UTC
+    if now.month == 12:
+        reset_at = now.replace(year=now.year + 1, month=1, day=1,
+                               hour=0, minute=0, second=0, microsecond=0)
+    else:
+        reset_at = now.replace(month=now.month + 1, day=1,
+                               hour=0, minute=0, second=0, microsecond=0)
 
     # Deactivate any existing keys for this user
     _execute(
@@ -276,7 +300,11 @@ def _provision_api_key(user_id: int, email: str, tier: str) -> str:
 
 def _set_tier_from_price(stripe_customer_id: str, price_id: str, status: str) -> None:
     """Map a Stripe price → tier and update subscription row + API key."""
-    tier = "pro" if price_id == _price_id("pro") else "starter"
+    tier = "starter"
+    for t in ALL_TIERS:
+        if price_id == _price_id(t):
+            tier = t
+            break
 
     sub = _query_one(
         "SELECT user_id FROM subscriptions WHERE stripe_customer_id = %s",
@@ -323,7 +351,7 @@ def _set_tier_from_price(stripe_customer_id: str, price_id: str, status: str) ->
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 class CheckoutBody(BaseModel):
-    tier: str  # 'starter' or 'pro'
+    tier: str  # 'starter' | 'analyst' | 'analyst_pro' | 'fund' | 'enterprise'
 
 
 @router.post("/create-checkout-session")
@@ -332,8 +360,10 @@ async def create_checkout_session(
     user: dict = Depends(current_user),
 ):
     tier = body.tier.lower()
-    if tier not in ("starter", "pro"):
-        raise HTTPException(400, "tier must be 'starter' or 'pro'")
+    if tier not in ALL_TIERS:
+        raise HTTPException(400, f"tier must be one of: {', '.join(ALL_TIERS)}")
+    if tier == "enterprise":
+        raise HTTPException(400, "Enterprise plans require contacting sales. Email billing@effant.tech")
 
     price_id = _price_id(tier)
     if not price_id:
@@ -426,7 +456,7 @@ async def stripe_webhook(request: Request):
         )
         if sub:
             _execute(
-                "UPDATE api_keys SET tier = 'starter', calls_limit = 10000 WHERE user_id = %s AND active = TRUE",
+                "UPDATE api_keys SET tier = 'starter', calls_limit = 0 WHERE user_id = %s AND active = TRUE",
                 (sub["user_id"],),
             )
         log.info(f"Subscription cancelled for customer {stripe_customer_id}")

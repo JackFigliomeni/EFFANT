@@ -1,59 +1,86 @@
 import { useState } from 'react'
 import { createCheckoutSession } from '../api/billing'
+import type { BillingTier } from '../api/billing'
 import { isLoggedIn } from '../api/portal'
 
 interface LandingProps {
-  onGetStarted: (tier: 'starter' | 'pro') => void
+  onGetStarted: (tier: string) => void
   onLogin: () => void
   onPrivacy: () => void
   onTerms: () => void
 }
 
 const STARTER_FEATURES = [
-  '10,000 API calls / day',
+  'Live overview dashboard',
+  'Metrics tab with candlestick charts',
+  'Anomaly feed with click-through detail',
+  'Entity cluster explorer',
+  'Wallet Explorer',
+  'No REST API',
+]
+
+const ANALYST_FEATURES = [
+  'Everything in Starter',
+  'API Terminal access',
+  'REST API — 500 requests/month',
   'Wallet profiling & risk scores',
-  'Anomaly feed (critical + high)',
-  'Entity cluster data',
-  '60s cache TTL',
+  'Real-time webhook alerts',
   'Email support',
 ]
 
-const PRO_FEATURES = [
-  '500,000 API calls / day',
-  'Everything in Starter',
-  'Real-time webhook alerts',
-  'Whale movement notifications',
-  'Custom anomaly thresholds',
+const ANALYST_PRO_FEATURES = [
+  'Everything in Analyst',
+  'REST API — 10,000 requests/month',
+  'Priority support',
   'Sub-second cache TTL',
-  'Priority support + SLA',
+]
+
+const FUND_FEATURES = [
+  'Everything in Analyst Pro',
+  'REST API — 100,000 requests/month',
+  'SLA guarantee',
+  'Dedicated onboarding',
+  'Custom anomaly thresholds',
+]
+
+const ENTERPRISE_FEATURES = [
+  'Custom API request limits',
+  'Dedicated infrastructure',
+  'Custom data pipelines',
+  'White-label options',
+  'Bespoke integrations',
+  'Direct engineering support',
 ]
 
 function PlanCard({
   tier,
+  name,
   price,
   period,
-  tagline,
   features,
   highlight,
+  enterprise,
   onStart,
 }: {
-  tier: 'starter' | 'pro'
+  tier: string
+  name: string
   price: string
   period: string
-  tagline: string
   features: string[]
   highlight: boolean
+  enterprise?: boolean
   onStart: () => void
 }) {
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
 
   async function handleClick() {
+    if (enterprise) return
     if (isLoggedIn()) {
       setLoading(true)
       setErr('')
       try {
-        const { url } = await createCheckoutSession(tier)
+        const { url } = await createCheckoutSession(tier as BillingTier)
         window.location.href = url
       } catch (e) {
         setErr((e as Error).message)
@@ -64,13 +91,15 @@ function PlanCard({
     }
   }
 
+  const borderColor = enterprise ? '#ca8a04' : highlight ? '#5b6cf8' : 'var(--border)'
+
   return (
     <div
       className="rounded-lg flex flex-col"
       style={{
-        background: highlight ? '#0f1629' : 'var(--surface)',
-        border: `1px solid ${highlight ? '#5b6cf8' : 'var(--border)'}`,
-        boxShadow: highlight ? '0 0 40px #5b6cf820' : 'none',
+        background: highlight ? '#0f1629' : enterprise ? '#0f0e00' : 'var(--surface)',
+        border: `1px solid ${borderColor}`,
+        boxShadow: highlight ? '0 0 40px #5b6cf820' : enterprise ? '0 0 30px #ca8a0410' : 'none',
       }}
     >
       {highlight && (
@@ -81,48 +110,74 @@ function PlanCard({
           Most Popular
         </div>
       )}
+      {enterprise && (
+        <div
+          className="text-center py-1.5 text-xs font-semibold mono tracking-widest uppercase rounded-t-lg"
+          style={{ background: '#ca8a04', color: '#fff' }}
+        >
+          Enterprise
+        </div>
+      )}
       <div className="p-8 flex flex-col flex-1">
         <div className="mb-6">
           <p className="mono text-xs uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>
-            {tier}
+            {name}
           </p>
           <div className="flex items-baseline gap-1 mb-1">
             <span className="text-4xl font-bold" style={{ color: '#fff' }}>{price}</span>
-            <span className="text-sm" style={{ color: 'var(--muted)' }}>{period}</span>
+            {period && <span className="text-sm" style={{ color: 'var(--muted)' }}>{period}</span>}
           </div>
-          <p className="text-sm" style={{ color: 'var(--muted)' }}>{tagline}</p>
+          {enterprise && (
+            <p className="mono text-xs mt-1" style={{ color: '#ca8a04' }}>billing@effant.tech</p>
+          )}
         </div>
 
         <ul className="space-y-3 mb-8 flex-1">
           {features.map(f => (
             <li key={f} className="flex items-start gap-3">
-              <span className="shrink-0 mt-0.5" style={{ color: 'var(--green)' }}>✓</span>
+              <span className="shrink-0 mt-0.5" style={{ color: enterprise ? '#ca8a04' : 'var(--green)' }}>✓</span>
               <span className="text-sm" style={{ color: 'var(--text)' }}>{f}</span>
             </li>
           ))}
         </ul>
 
-        <button
-          onClick={handleClick}
-          disabled={loading}
-          className="w-full rounded py-3 text-sm font-semibold transition-all"
-          style={{
-            background: highlight ? '#5b6cf8' : 'transparent',
-            border: `1px solid ${highlight ? '#5b6cf8' : 'var(--border)'}`,
-            color: highlight ? '#fff' : 'var(--text)',
-            opacity: loading ? 0.6 : 1,
-          }}
-          onMouseEnter={e => {
-            if (!highlight) e.currentTarget.style.borderColor = '#5b6cf8'
-          }}
-          onMouseLeave={e => {
-            if (!highlight) e.currentTarget.style.borderColor = 'var(--border)'
-          }}
-        >
-          {loading ? 'Redirecting…' : `Get Started with ${tier.charAt(0).toUpperCase() + tier.slice(1)}`}
-        </button>
-        {err && (
-          <p className="mt-2 text-xs text-center" style={{ color: 'var(--red)' }}>{err}</p>
+        {enterprise ? (
+          <a
+            href="mailto:billing@effant.tech"
+            className="w-full rounded py-3 text-sm font-semibold text-center block transition-all"
+            style={{
+              background: 'transparent',
+              border: '1px solid #ca8a04',
+              color: '#ca8a04',
+            }}
+          >
+            Contact for pricing
+          </a>
+        ) : (
+          <>
+            <button
+              onClick={handleClick}
+              disabled={loading}
+              className="w-full rounded py-3 text-sm font-semibold transition-all"
+              style={{
+                background: highlight ? '#5b6cf8' : 'transparent',
+                border: `1px solid ${highlight ? '#5b6cf8' : 'var(--border)'}`,
+                color: highlight ? '#fff' : 'var(--text)',
+                opacity: loading ? 0.6 : 1,
+              }}
+              onMouseEnter={e => {
+                if (!highlight) e.currentTarget.style.borderColor = '#5b6cf8'
+              }}
+              onMouseLeave={e => {
+                if (!highlight) e.currentTarget.style.borderColor = 'var(--border)'
+              }}
+            >
+              {loading ? 'Redirecting…' : `Get Started with ${name}`}
+            </button>
+            {err && (
+              <p className="mt-2 text-xs text-center" style={{ color: 'var(--red)' }}>{err}</p>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -288,7 +343,7 @@ export function Landing({ onGetStarted, onLogin, onPrivacy, onTerms }: LandingPr
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="px-6 mb-24 mx-auto" style={{ maxWidth: 860 }}>
+      <section id="pricing" className="px-6 mb-24 mx-auto" style={{ maxWidth: 1060 }}>
         <div className="text-center mb-12">
           <h2 className="text-2xl font-bold mb-3" style={{ color: '#fff' }}>Simple, transparent pricing</h2>
           <p className="text-sm" style={{ color: 'var(--muted)' }}>
@@ -296,24 +351,57 @@ export function Landing({ onGetStarted, onLogin, onPrivacy, onTerms }: LandingPr
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-5">
+        {/* Row 1: Starter, Analyst (highlighted), Analyst Pro */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
           <PlanCard
             tier="starter"
-            price="$499"
+            name="Starter"
+            price="$20"
             period="/month"
-            tagline="For teams building on Solana."
             features={STARTER_FEATURES}
             highlight={false}
             onStart={() => onGetStarted('starter')}
           />
           <PlanCard
-            tier="pro"
-            price="$4,900"
+            tier="analyst"
+            name="Analyst"
+            price="$100"
             period="/month"
-            tagline="For institutions and high-volume apps."
-            features={PRO_FEATURES}
+            features={ANALYST_FEATURES}
             highlight
-            onStart={() => onGetStarted('pro')}
+            onStart={() => onGetStarted('analyst')}
+          />
+          <PlanCard
+            tier="analyst_pro"
+            name="Analyst Pro"
+            price="$500"
+            period="/month"
+            features={ANALYST_PRO_FEATURES}
+            highlight={false}
+            onStart={() => onGetStarted('analyst_pro')}
+          />
+        </div>
+
+        {/* Row 2: Fund, Enterprise */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <PlanCard
+            tier="fund"
+            name="Fund"
+            price="$1,200"
+            period="/month"
+            features={FUND_FEATURES}
+            highlight={false}
+            onStart={() => onGetStarted('fund')}
+          />
+          <PlanCard
+            tier="enterprise"
+            name="Enterprise"
+            price="Custom"
+            period=""
+            features={ENTERPRISE_FEATURES}
+            highlight={false}
+            enterprise
+            onStart={() => {}}
           />
         </div>
 

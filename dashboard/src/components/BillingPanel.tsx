@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { fetchSubscription, createCheckoutSession, cancelSubscription } from '../api/billing'
-import type { Subscription } from '../api/billing'
+import type { Subscription, BillingTier } from '../api/billing'
 
 function relTime(iso: string | null | undefined): string {
   if (!iso) return '—'
@@ -19,21 +19,37 @@ const STATUS_COLOR: Record<string, string> = {
 
 const PLANS = [
   {
-    tier:     'starter' as const,
+    tier:     'starter' as BillingTier,
     name:     'Starter',
-    price:    '$499',
+    price:    '$20',
     period:   '/month',
-    limit:    '10,000 calls/day',
-    features: ['All 6 API endpoints', 'Anomaly detection feed', 'Entity clustering', 'Wallet profiling', '30s cache TTL on anomalies'],
+    limit:    'No REST API',
+    features: ['Live dashboard', 'Metrics charts', 'Anomaly detail', 'Wallet Explorer'],
   },
   {
-    tier:     'pro' as const,
-    name:     'Professional',
-    price:    '$4,900',
+    tier:     'analyst' as BillingTier,
+    name:     'Analyst',
+    price:    '$100',
     period:   '/month',
-    limit:    '500,000 calls/day',
-    features: ['Everything in Starter', '50× higher rate limit', 'Priority support', 'SLA guarantee', 'Dedicated onboarding'],
+    limit:    '500 req / month',
+    features: ['Everything in Starter', 'Terminal access', 'REST API — 500 req/mo', 'Webhooks'],
     highlight: true,
+  },
+  {
+    tier:     'analyst_pro' as BillingTier,
+    name:     'Analyst Pro',
+    price:    '$500',
+    period:   '/month',
+    limit:    '10,000 req / month',
+    features: ['Everything in Analyst', 'REST API — 10k req/mo', 'Priority support'],
+  },
+  {
+    tier:     'fund' as BillingTier,
+    name:     'Fund',
+    price:    '$1,200',
+    period:   '/month',
+    limit:    '100,000 req / month',
+    features: ['Everything in Analyst Pro', 'REST API — 100k req/mo', 'SLA guarantee', 'Dedicated onboarding'],
   },
 ]
 
@@ -43,7 +59,7 @@ function PlanCard({
   plan: typeof PLANS[0]
   currentTier?: string
   status?: string
-  onCheckout: (tier: 'starter' | 'pro') => void
+  onCheckout: (tier: BillingTier) => void
   loading: boolean
 }) {
   const isCurrent = currentTier === plan.tier && status && status !== 'canceled'
@@ -72,6 +88,7 @@ function PlanCard({
             <span className="text-sm" style={{ color: 'var(--muted)' }}>{plan.period}</span>
           </div>
           <p className="mono text-xs mt-1" style={{ color: 'var(--accent)' }}>{plan.limit}</p>
+          {/* Monthly limit label — "req/month" terminology */}
         </div>
 
         <ul className="space-y-2">
@@ -130,7 +147,7 @@ export function BillingPanel({ authed }: { authed: boolean }) {
     },
   })
 
-  async function handleCheckout(tier: 'starter' | 'pro') {
+  async function handleCheckout(tier: BillingTier) {
     setCheckoutLoading(tier)
     try {
       const { url } = await createCheckoutSession(tier)
@@ -160,7 +177,7 @@ export function BillingPanel({ authed }: { authed: boolean }) {
                 style={{ background: STATUS_COLOR[sub.status ?? 'incomplete'] ?? '#64748b' }} />
               <div>
                 <span className="mono text-sm font-semibold" style={{ color: '#fff' }}>
-                  {sub.tier?.charAt(0).toUpperCase()}{sub.tier?.slice(1)} plan
+                  {sub.tier?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} plan
                 </span>
                 <span className="mono text-xs ml-2" style={{ color: STATUS_COLOR[sub.status ?? 'incomplete'] }}>
                   {sub.status}

@@ -38,7 +38,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'instant' })
   }, [page])
 
-  function handleGetStarted(_tier: 'starter' | 'pro') {
+  function handleGetStarted(_tier: string) {
     setPage('portal')
   }
 
