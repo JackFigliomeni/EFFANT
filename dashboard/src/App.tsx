@@ -9,6 +9,7 @@ import { MetricsPage } from './pages/MetricsPage'
 import { Landing } from './pages/Landing'
 import { PrivacyPolicy } from './pages/PrivacyPolicy'
 import { TermsOfService } from './pages/TermsOfService'
+import { PricingPage } from './pages/PricingPage'
 
 function parseUrlParams() {
   const p = new URLSearchParams(window.location.search)
@@ -52,6 +53,10 @@ export default function App() {
     return <TermsOfService onBack={() => setPage('landing')} />
   }
 
+  if (page === 'pricing') {
+    return <PricingPage onBack={() => setPage('landing')} onLogin={() => setPage('portal')} onGetStarted={() => setPage('portal')} onNav={(p: Page) => setPage(p)} />
+  }
+
   if (page === 'landing') {
     return (
       <Landing
@@ -59,6 +64,8 @@ export default function App() {
         onLogin={() => setPage('portal')}
         onPrivacy={() => setPage('privacy')}
         onTerms={() => setPage('terms')}
+        onNav={(p: Page) => setPage(p)}
+        onPricing={() => setPage('pricing')}
       />
     )
   }

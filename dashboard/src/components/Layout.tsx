@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { ProfileDropdown } from './ProfileDropdown'
 
-export type Page = 'landing' | 'overview' | 'explorer' | 'portal' | 'terminal' | 'metrics' | 'privacy' | 'terms'
+export type Page = 'landing' | 'overview' | 'explorer' | 'portal' | 'terminal' | 'metrics' | 'privacy' | 'terms' | 'pricing'
 
 interface LayoutProps {
   page:      Page
