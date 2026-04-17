@@ -7,6 +7,7 @@ interface LayoutProps {
   page:      Page
   onNav:     (p: Page) => void
   onSignOut: () => void
+  onHome:    () => void
   children:  ReactNode
 }
 
@@ -29,7 +30,7 @@ const tabBase: React.CSSProperties = {
   transition: 'color 0.15s',
 }
 
-export function Layout({ page, onNav, onSignOut, children }: LayoutProps) {
+export function Layout({ page, onNav, onSignOut, onHome, children }: LayoutProps) {
   // metrics lives under the overview tab
   const activeTab = page === 'metrics' ? 'overview' : page
 
@@ -40,9 +41,16 @@ export function Layout({ page, onNav, onSignOut, children }: LayoutProps) {
         {/* Row 1 — brand + live indicator + profile */}
         <div className="flex items-center justify-between px-8 py-3">
           <div className="flex items-center gap-3">
-            <span className="mono font-bold" style={{ color: 'var(--accent)', fontSize: 14, letterSpacing: '0.05em' }}>
+            <button
+              onClick={onHome}
+              className="mono font-bold transition-opacity"
+              style={{ color: 'var(--accent)', fontSize: 14, letterSpacing: '0.05em', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = '0.7')}
+              onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+              title="Back to home"
+            >
               EFFANT
-            </span>
+            </button>
             <span style={{ color: 'var(--border2)', userSelect: 'none' }}>|</span>
             <span style={{ color: 'var(--dim)', fontSize: 11 }}>
               Deeper dives into Solana metrics

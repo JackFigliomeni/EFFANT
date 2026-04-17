@@ -342,63 +342,58 @@ export function Landing({ onGetStarted, onLogin, onPrivacy, onTerms, onNav, onPr
 
       {/* ── Section 1: Hero ── */}
       <section
-        className="px-6 flex items-center"
-        style={{ minHeight: '100vh', paddingTop: 60 }}
+        className="px-6 flex flex-col items-center justify-center text-center"
+        style={{ minHeight: 'calc(100vh - 60px)', paddingTop: 48, paddingBottom: 64 }}
       >
-        <div className="mx-auto w-full" style={{ maxWidth: 1200 }}>
-          <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-20">
-            {/* Left */}
-            <div className="flex-1" style={{ maxWidth: 580 }}>
-              <p className="mono text-xs uppercase tracking-widest mb-5" style={{ color: '#9daab6', letterSpacing: '0.15em' }}>
-                REST API · Solana Intelligence
-              </p>
-              <h1
-                className="font-extrabold leading-none mb-6"
-                style={{
-                  fontSize: 'clamp(52px, 7vw, 80px)',
-                  letterSpacing: '-0.03em',
-                  color: '#fff',
-                }}
-              >
-                Solana on-chain<br />intelligence,{' '}
-                <span style={{ color: '#9daab6' }}>delivered as an API.</span>
-              </h1>
-              <p
-                className="text-base mb-8"
-                style={{ color: '#686868', lineHeight: 1.7, maxWidth: 480 }}
-              >
-                Wallet profiling, anomaly detection, entity clustering, and whale tracking — all via a single REST API. From raw transactions to actionable signal in milliseconds.
-              </p>
-              <div className="flex items-center gap-3 flex-wrap mb-8">
-                <button
-                  onClick={() => onGetStarted('starter')}
-                  className="rounded px-6 py-3 font-semibold text-sm transition-all"
-                  style={{ background: '#fff', color: '#0d0d0d', border: 'none', cursor: 'pointer' }}
-                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
-                  onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-                >
-                  Get started →
-                </button>
-                <button
-                  onClick={onPricing}
-                  className="rounded px-6 py-3 font-semibold text-sm transition-all"
-                  style={{ background: 'transparent', border: '1px solid #313131', color: '#9daab6', cursor: 'pointer' }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = '#9daab6')}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = '#313131')}
-                >
-                  View pricing
-                </button>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: 'var(--green)', flexShrink: 0 }} />
-                <span className="mono text-xs" style={{ color: '#3c3c3c' }}>LIVE · updating every 30s</span>
-              </div>
-            </div>
-
-            {/* Right: terminal */}
-            <div className="flex-1 flex justify-center lg:justify-end w-full">
-              <TerminalWindow />
-            </div>
+        <p className="mono text-xs uppercase tracking-widest mb-6" style={{ color: '#9daab6', letterSpacing: '0.18em' }}>
+          REST API · Solana Intelligence
+        </p>
+        <h1
+          className="font-extrabold leading-none mb-6 mx-auto"
+          style={{
+            fontSize: 'clamp(48px, 7vw, 86px)',
+            letterSpacing: '-0.035em',
+            color: '#fff',
+            maxWidth: 860,
+          }}
+        >
+          Solana on-chain intelligence,{' '}
+          <span style={{ color: '#9daab6' }}>delivered as an API.</span>
+        </h1>
+        <p
+          className="text-base mb-10 mx-auto"
+          style={{ color: '#686868', lineHeight: 1.75, maxWidth: 540 }}
+        >
+          Wallet profiling, anomaly detection, entity clustering, and whale tracking — all via a single REST API. From raw transactions to actionable signal in milliseconds.
+        </p>
+        <div className="flex items-center justify-center gap-3 flex-wrap mb-6">
+          <button
+            onClick={() => onGetStarted('starter')}
+            className="rounded px-7 py-3 font-semibold text-sm transition-all"
+            style={{ background: '#fff', color: '#0d0d0d', border: 'none', cursor: 'pointer' }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+          >
+            Get started →
+          </button>
+          <button
+            onClick={onPricing}
+            className="rounded px-7 py-3 font-semibold text-sm transition-all"
+            style={{ background: 'transparent', border: '1px solid #313131', color: '#9daab6', cursor: 'pointer' }}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = '#9daab6')}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = '#313131')}
+          >
+            View pricing
+          </button>
+        </div>
+        <div className="flex items-center justify-center gap-2 mb-14">
+          <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: 'var(--green)', flexShrink: 0 }} />
+          <span className="mono text-xs" style={{ color: '#3c3c3c' }}>LIVE · updating every 30s</span>
+        </div>
+        {/* Terminal window centered below CTAs */}
+        <div className="w-full flex justify-center">
+          <div style={{ maxWidth: 640, width: '100%' }}>
+            <TerminalWindow />
           </div>
         </div>
       </section>
