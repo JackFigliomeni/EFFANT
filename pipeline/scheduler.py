@@ -553,21 +553,21 @@ def main():
     scheduler.add_job(
         anomaly_job,
         trigger="interval",
-        minutes=10,
+        minutes=2,
         id="anomaly_detection",
         name="Anomaly detection",
         max_instances=1,
-        misfire_grace_time=60,
+        misfire_grace_time=30,
         coalesce=True,
     )
     scheduler.add_job(
         cluster_job,
         trigger="interval",
-        minutes=15,
+        minutes=5,
         id="clustering",
         name="Entity clustering",
         max_instances=1,
-        misfire_grace_time=300,
+        misfire_grace_time=60,
         coalesce=True,
     )
     # Daily digest at 08:00 UTC
