@@ -121,13 +121,15 @@ async def _current_user(creds: _Creds | None = Depends(_bearer)) -> dict:
     return user
 
 
-def _require_pro(user: dict) -> None:
+WEBHOOK_TIERS = {"analyst", "analyst_pro", "fund", "enterprise"}
+
+def _require_webhook_tier(user: dict) -> None:
     key = _query_one(
         "SELECT tier FROM api_keys WHERE user_id = %s AND active = TRUE ORDER BY created_at DESC LIMIT 1",
         (user["id"],),
     )
-    if not key or key["tier"] != "pro":
-        raise HTTPException(403, "Webhooks are a Pro tier feature. Upgrade to access.")
+    if not key or key["tier"] not in WEBHOOK_TIERS:
+        raise HTTPException(403, "Webhooks require an Analyst plan or above. Upgrade at effant.tech/pricing.")
 
 
 # ── Serialization ─────────────────────────────────────────────────────────────
@@ -156,7 +158,7 @@ class WebhookCreate(BaseModel):
 
 @router.get("/webhooks")
 async def list_webhooks(user: dict = Depends(_current_user)):
-    _require_pro(user)
+    _require_webhook_tier(user)
     rows = _query(
         """SELECT id, url, event_types, active, created_at, last_triggered_at, last_status
            FROM webhooks WHERE user_id = %s AND active = TRUE ORDER BY created_at DESC""",
@@ -167,7 +169,7 @@ async def list_webhooks(user: dict = Depends(_current_user)):
 
 @router.post("/webhooks", status_code=201)
 async def create_webhook(body: WebhookCreate, user: dict = Depends(_current_user)):
-    _require_pro(user)
+    _require_webhook_tier(user)
 
     invalid = [e for e in body.event_types if e not in VALID_EVENT_TYPES]
     if invalid:
@@ -196,7 +198,7 @@ async def create_webhook(body: WebhookCreate, user: dict = Depends(_current_user
 
 @router.delete("/webhooks/{webhook_id}", status_code=204)
 async def delete_webhook(webhook_id: int, user: dict = Depends(_current_user)):
-    _require_pro(user)
+    _require_webhook_tier(user)
     wh = _query_one(
         "SELECT id FROM webhooks WHERE id = %s AND user_id = %s AND active = TRUE",
         (webhook_id, user["id"]),
@@ -204,6 +206,44 @@ async def delete_webhook(webhook_id: int, user: dict = Depends(_current_user)):
     if not wh:
         raise HTTPException(404, "Webhook not found")
     _execute("UPDATE webhooks SET active = FALSE WHERE id = %s", (webhook_id,))
+
+
+@router.post("/webhooks/{webhook_id}/test", status_code=200)
+async def test_webhook(webhook_id: int, user: dict = Depends(_current_user)):
+    """
+    Fire a test event to the webhook URL immediately.
+    Returns the HTTP status the remote server responded with.
+    Use this to verify your endpoint is receiving and verifying signatures correctly.
+    """
+    _require_webhook_tier(user)
+
+    wh = _query_one(
+        "SELECT id, url, secret_key, event_types FROM webhooks WHERE id = %s AND user_id = %s AND active = TRUE",
+        (webhook_id, user["id"]),
+    )
+    if not wh:
+        raise HTTPException(404, "Webhook not found")
+
+    test_payload = {
+        "event":     "new_anomaly_critical",
+        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+        "data": {
+            "wallet_address": "DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL",
+            "wallet_label":   "Jito Tip 1",
+            "anomaly_type":   "whale_movement",
+            "severity":       "critical",
+            "detected_at":    datetime.now(tz=timezone.utc).isoformat(),
+            "description":    "TEST EVENT — Whale movement: 676.19 SOL moved in 1h window | This is a test delivery from Effant.",
+        },
+    }
+    payload_bytes = json.dumps(test_payload, default=str).encode()
+    signature     = _sign(payload_bytes, wh["secret_key"])
+    status        = _deliver_one(wh["url"], payload_bytes, signature, wh["id"])
+
+    if status and 200 <= status < 300:
+        return {"status": status, "result": "success", "message": "Test event delivered successfully."}
+    else:
+        return {"status": status, "result": "failed", "message": f"Remote server returned HTTP {status}. Check your endpoint."}
 
 
 # ── Delivery engine ───────────────────────────────────────────────────────────

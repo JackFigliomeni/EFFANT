@@ -32,6 +32,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from anomaly_detector import run as _run_anomaly_detection
 from clusterer import run as _run_clustering
 from labeler import run as _run_labeler
+from webhook_dispatcher import dispatch_new_anomalies as _dispatch_webhooks
 
 load_dotenv()
 
@@ -87,6 +88,7 @@ class _State:
     total_wallets: int  = 0
     run_count:     int  = 0
     consecutive_failures: int = 0
+    last_dispatch_ts: datetime = datetime(2000, 1, 1, tzinfo=timezone.utc)  # dispatch any undelivered on first run
 
 state = _State()
 
@@ -366,8 +368,19 @@ def anomaly_job():
     try:
         conn = psycopg2.connect(DATABASE_URL)
         n = _run_anomaly_detection(conn)
-        conn.close()
         log.info(f"── Anomaly detection done: {n} records ────────────")
+
+        # Dispatch new critical/high anomalies to registered webhooks
+        since = state.last_dispatch_ts
+        state.last_dispatch_ts = datetime.now(tz=timezone.utc)
+        try:
+            dispatched = _dispatch_webhooks(conn, since)
+            if dispatched:
+                log.info(f"── Webhook dispatch: {dispatched} events fired ─────")
+        except Exception as exc:
+            log.error(f"Webhook dispatch failed (non-fatal): {exc}")
+
+        conn.close()
     except Exception as exc:
         log.error(f"Anomaly job failed: {exc}")
 

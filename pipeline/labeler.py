@@ -311,11 +311,11 @@ def run(conn) -> int:
 
     # Build known-address CASE arms
     known_label_cases  = "\n            ".join(
-        f"WHEN w.address = '{addr}' THEN '{lbl}'"
+        f"WHEN wallets.address = '{addr}' THEN '{lbl}'"
         for addr, (lbl, _) in KNOWN_ADDRESSES.items()
     )
     known_etype_cases  = "\n            ".join(
-        f"WHEN w.address = '{addr}' THEN '{et}'"
+        f"WHEN wallets.address = '{addr}' THEN '{et}'"
         for addr, (_, et) in KNOWN_ADDRESSES.items()
     )
 
