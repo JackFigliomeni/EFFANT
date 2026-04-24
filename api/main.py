@@ -129,8 +129,11 @@ app = FastAPI(
     version="0.1.0",
     description="Wallet profiling, anomaly detection, and entity clustering for Solana.",
     lifespan=lifespan,
+    servers=[{"url": "https://api.effant.tech", "description": "Production"}],
 )
 
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
