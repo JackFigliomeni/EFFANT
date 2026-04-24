@@ -36,8 +36,12 @@ if not DATABASE_URL:
     sys.exit("ERROR: DATABASE_URL not set in .env")
 
 TIER_LIMITS = {
-    "starter":   10_000,
-    "pro":      500_000,
+    "starter":      0,
+    "analyst":      500,
+    "analyst_pro":  10_000,
+    "fund":         100_000,
+    "enterprise":   1_000_000,
+    "pro":          500_000,   # legacy
 }
 
 KEY_PREFIX  = "eff_sk_"
