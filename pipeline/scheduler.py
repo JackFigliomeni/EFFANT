@@ -106,7 +106,19 @@ def write_health(status: str, detail: str = ""):
         "consecutive_failures": state.consecutive_failures,
         "detail":           detail,
     }
-    HEALTH_FILE.write_text(json.dumps(payload, indent=2))
+    # Write to file (local dev fallback)
+    try:
+        HEALTH_FILE.write_text(json.dumps(payload, indent=2))
+    except Exception:
+        pass
+    # Write to Redis so the API container (separate Railway service) can read it
+    try:
+        import redis as _redis
+        _redis_url = os.getenv("REDIS_PUBLIC_URL") or os.getenv("REDIS_URL", "redis://localhost:6379")
+        r = _redis.from_url(_redis_url, socket_connect_timeout=2)
+        r.setex("effant:pipeline:health", 300, json.dumps(payload))  # TTL 5 min
+    except Exception as _e:
+        log.warning(f"write_health Redis write failed (non-fatal): {_e}")
 
 
 # ── RPC helpers (same as ingest.py) ──────────────────────────────────────────

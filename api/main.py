@@ -301,6 +301,25 @@ def _redis_status() -> dict:
 
 
 def _pipeline_status() -> dict:
+    # Try Redis first — shared between the API container and the worker container on Railway
+    try:
+        import redis as _redis_sync
+        r = _redis_sync.from_url(REDIS_URL, socket_connect_timeout=1)
+        val = r.get("effant:pipeline:health")
+        if val:
+            data = json.loads(val)
+            return {
+                "last_success":         data.get("last_success"),
+                "last_run":             data.get("last_run"),
+                "run_count":            data.get("run_count"),
+                "total_txs_ingested":   data.get("total_txs"),
+                "current_slot":         data.get("current_slot"),
+                "consecutive_failures": data.get("consecutive_failures", 0),
+                "status":               data.get("status"),
+            }
+    except Exception:
+        pass
+    # Fallback: local health.json (works in local dev)
     try:
         data = json.loads(HEALTH_FILE.read_text())
         return {
