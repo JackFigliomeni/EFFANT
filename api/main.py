@@ -136,17 +136,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from starlette.responses import RedirectResponse as _Redirect
 
 @app.middleware("http")
-async def _https_redirect(request: Request, call_next):
-    """Redirect HTTP → HTTPS and set HSTS.
-    On Railway, X-Forwarded-Proto is set for all proxied requests.
-    In production we redirect any request that isn't confirmed HTTPS."""
-    is_production = bool(os.getenv("RAILWAY_ENVIRONMENT"))
-    proto = request.headers.get("x-forwarded-proto", "")
-    if is_production and proto != "https":
-        https_url = "https://" + request.headers.get("host", "api.effant.tech") + str(request.url.path)
-        if request.url.query:
-            https_url += "?" + request.url.query
-        return _Redirect(https_url, status_code=301)
+async def _add_security_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
