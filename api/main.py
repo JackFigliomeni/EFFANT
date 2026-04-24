@@ -133,6 +133,16 @@ app = FastAPI(
 )
 
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+from starlette.responses import RedirectResponse as _Redirect
+
+@app.middleware("http")
+async def _https_redirect(request: Request, call_next):
+    """Redirect HTTP → HTTPS when running behind Railway's SSL proxy."""
+    if request.headers.get("x-forwarded-proto") == "http":
+        https_url = str(request.url).replace("http://", "https://", 1)
+        return _Redirect(https_url, status_code=301)
+    return await call_next(request)
+
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 app.add_middleware(
     CORSMiddleware,
