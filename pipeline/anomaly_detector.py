@@ -521,7 +521,7 @@ INSERT_ANOMALY = """
         SELECT 1 FROM anomalies
         WHERE wallet_address = %(wallet_address)s
           AND anomaly_type   = %(anomaly_type)s
-          AND detected_at   > NOW() - INTERVAL '10 minutes'
+          AND detected_at   > NOW() - INTERVAL '2 minutes'
     )
 """
 
