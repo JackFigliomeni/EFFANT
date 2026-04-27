@@ -469,12 +469,14 @@ VALID_SEVERITIES = {"low", "medium", "high", "critical"}
 VALID_ANOM_TYPES = {"wash_trading", "volume_spike", "sandwich_attack", "whale_movement"}
 
 
-def _fetch_anomalies(severity: str | None, anomaly_type: str | None, limit: int, offset: int) -> dict:
+def _fetch_anomalies(severity: str | None, anomaly_type: str | None, limit: int, offset: int, since: str | None = None) -> dict:
     filters, params = [], []
     if severity:
         filters.append("a.severity = %s"); params.append(severity)
     if anomaly_type:
         filters.append("a.anomaly_type = %s"); params.append(anomaly_type)
+    if since:
+        filters.append("a.detected_at > %s"); params.append(since)
     where = ("WHERE " + " AND ".join(filters)) if filters else ""
 
     count_row = query_one(f"SELECT COUNT(*) AS n FROM anomalies a {where}", tuple(params))
@@ -484,9 +486,7 @@ def _fetch_anomalies(severity: str | None, anomaly_type: str | None, limit: int,
         FROM anomalies a
         LEFT JOIN wallets w ON w.address = a.wallet_address
         {where}
-        ORDER BY CASE a.severity
-            WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
-            a.detected_at DESC
+        ORDER BY a.detected_at DESC
         LIMIT %s OFFSET %s
     """, tuple(params + [limit, offset]))
 
@@ -504,18 +504,19 @@ def _fetch_anomalies(severity: str | None, anomaly_type: str | None, limit: int,
 async def get_anomalies(
     severity:     Optional[str] = Query(None),
     anomaly_type: Optional[str] = Query(None),
+    since:        Optional[str] = Query(None, description="ISO 8601 timestamp — only return anomalies detected after this time. Example: 2026-04-24T14:00:00Z"),
     limit:        int           = Query(100, ge=1, le=500),
     offset:       int           = Query(0,   ge=0),
 ) -> dict:
-    """Anomaly feed cached for 30 seconds."""
+    """Anomaly feed. Filter by severity, type, and/or since timestamp. Cached 30 seconds."""
     if severity     and severity     not in VALID_SEVERITIES:
         raise HTTPException(400, detail=f"severity must be one of {sorted(VALID_SEVERITIES)}")
     if anomaly_type and anomaly_type not in VALID_ANOM_TYPES:
         raise HTTPException(400, detail=f"anomaly_type must be one of {sorted(VALID_ANOM_TYPES)}")
 
-    result = await run_in_threadpool(_fetch_anomalies, severity, anomaly_type, limit, offset)
+    result = await run_in_threadpool(_fetch_anomalies, severity, anomaly_type, limit, offset, since)
     return ok(result["records"], total=result["total"], limit=limit, offset=offset,
-              filters={"severity": severity, "anomaly_type": anomaly_type})
+              filters={"severity": severity, "anomaly_type": anomaly_type, "since": since})
 
 
 # ── GET /v1/clusters ──────────────────────────────────────────────────────────
