@@ -72,8 +72,8 @@ export default function App() {
 
   return (
     <Layout page={page} onNav={p => setPage(p)} onSignOut={() => setPage('landing')} onHome={() => setPage('landing')}>
-      {page === 'overview'  && <Overview  onGoMetrics={() => setPage('metrics')} />}
-      {page === 'metrics'   && <MetricsPage onGoOverview={() => setPage('overview')} />}
+      {page === 'overview'  && <Overview />}
+      {page === 'metrics'   && <MetricsPage />}
       {page === 'explorer'  && <WalletExplorer />}
       {page === 'terminal'  && <TerminalPage onGoPortal={() => setPage('portal')} />}
       {page === 'portal'    && (

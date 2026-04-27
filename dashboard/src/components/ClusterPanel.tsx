@@ -50,7 +50,7 @@ function ClusterRow({
         </div>
         <div className="flex items-center gap-3">
           <span className="mono text-xs" style={{ color: 'var(--muted)' }}>
-            {c.wallet_count}w
+            {c.wallet_count} wallets
           </span>
           <span className="mono text-xs font-semibold" style={{ color: '#fff' }}>
             {fmtVol(c.total_volume)} SOL

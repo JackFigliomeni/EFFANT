@@ -92,8 +92,8 @@ function PlanCard({
     }
   }
 
-  const borderColor = enterprise ? '#ca8a04' : highlight ? '#9daab6' : 'var(--border)'
-  const bgColor = highlight ? '#1a1a1a' : enterprise ? '#111100' : '#141414'
+  const borderColor = enterprise ? '#ca8a04' : highlight ? '#7c6fe0' : 'var(--border)'
+  const bgColor = highlight ? '#111830' : enterprise ? '#130f00' : '#0d1525'
 
   return (
     <div
@@ -101,13 +101,13 @@ function PlanCard({
       style={{
         background: bgColor,
         border: `1px solid ${borderColor}`,
-        boxShadow: highlight ? '0 0 40px #9daab610' : enterprise ? '0 0 30px #ca8a0410' : 'none',
+        boxShadow: highlight ? '0 0 40px #7c6fe018' : enterprise ? '0 0 30px #ca8a0410' : 'none',
       }}
     >
       {highlight && (
         <div
           className="text-center py-1.5 text-xs font-semibold mono tracking-widest uppercase rounded-t-lg"
-          style={{ background: '#9daab6', color: '#0d0d0d' }}
+          style={{ background: '#7c6fe0', color: '#fff' }}
         >
           Most Popular
         </div>
@@ -120,12 +120,12 @@ function PlanCard({
           Enterprise
         </div>
       )}
-      <div className="p-8 flex flex-col flex-1">
-        <div className="mb-6">
+      <div className="p-8 flex flex-col flex-1 items-center text-center">
+        <div className="mb-6 w-full">
           <p className="mono text-xs uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>
             {name}
           </p>
-          <div className="flex items-baseline gap-1 mb-1">
+          <div className="flex items-baseline justify-center gap-1 mb-1">
             <span className="text-4xl font-bold" style={{ color: '#fff' }}>{price}</span>
             {period && <span className="text-sm" style={{ color: 'var(--muted)' }}>{period}</span>}
           </div>
@@ -134,7 +134,7 @@ function PlanCard({
           )}
         </div>
 
-        <ul className="space-y-3 mb-8 flex-1">
+        <ul className="space-y-3 mb-8 flex-1 w-full text-left">
           {features.map(f => (
             <li key={f} className="flex items-start gap-3">
               <span className="shrink-0 mt-0.5" style={{ color: enterprise ? '#ca8a04' : 'var(--green)' }}>✓</span>
@@ -163,15 +163,15 @@ function PlanCard({
               disabled={loading}
               className="w-full rounded py-3 text-sm font-semibold transition-all"
               style={{
-                background: highlight ? '#fff' : 'transparent',
-                border: `1px solid ${highlight ? '#fff' : 'var(--border)'}`,
-                color: highlight ? '#0d0d0d' : 'var(--text)',
+                background: highlight ? '#7c6fe0' : 'transparent',
+                border: `1px solid ${highlight ? '#7c6fe0' : 'var(--border)'}`,
+                color: '#fff',
                 opacity: loading ? 0.6 : 1,
                 cursor: loading ? 'not-allowed' : 'pointer',
               }}
               onMouseEnter={e => {
                 if (!highlight) {
-                  e.currentTarget.style.borderColor = '#9daab6'
+                  e.currentTarget.style.borderColor = '#7c6fe0'
                   e.currentTarget.style.color = '#fff'
                 }
               }}
@@ -217,102 +217,67 @@ export function PricingPage({ onBack, onLogin, onGetStarted, onNav }: PricingPag
   ]
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+    <div className="min-h-screen" style={{ background: '#07090f', color: '#e2e8f0' }}>
       {/* Sticky nav */}
-      <nav
-        className="sticky top-0 z-20 flex items-center justify-between px-8"
-        style={{
-          background: 'var(--bg)',
-          borderBottom: '1px solid var(--border)',
-          height: 60,
-        }}
-      >
+      <nav className="sticky top-0 z-20 flex items-center justify-between px-8"
+        style={{ background: 'rgba(7,9,15,0.92)', borderBottom: '1px solid #1c2c42', height: 64, backdropFilter: 'blur(12px)' }}>
         <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="mono font-bold"
-            style={{ background: 'none', border: 'none', color: '#9daab6', fontSize: 15, letterSpacing: '0.05em', cursor: 'pointer' }}
-          >
+          <button onClick={onBack} style={{ background: 'none', border: 'none', fontWeight: 700, color: '#fff', fontSize: 15, letterSpacing: '0.04em', cursor: 'pointer', padding: 0 }}>
             EFFANT
           </button>
-          <span style={{ color: 'var(--border2)', userSelect: 'none' }}>|</span>
-          <span style={{ color: 'var(--dim)', fontSize: 11 }}>Solana Intelligence</span>
+          <span style={{ color: '#1c2c42', userSelect: 'none' }}>|</span>
+          <span style={{ color: '#2d3a52', fontSize: 11 }}>Solana Intelligence</span>
         </div>
 
-        <div className="flex items-center gap-6">
-          {/* Products dropdown */}
+        <div className="flex items-center gap-2">
           <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setDropdownOpen(v => !v)}
-              className="text-xs font-medium flex items-center gap-1"
-              style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}
-            >
-              Products <span style={{ fontSize: 10 }}>▼</span>
+            <button onClick={() => setDropdownOpen(v => !v)}
+              className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm"
+              style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontFamily: 'inherit' }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#94a3b8')}>
+              Products <span style={{ fontSize: 9 }}>▼</span>
             </button>
             {dropdownOpen && (
-              <div
-                className="absolute top-full mt-2 rounded-lg py-1 z-50"
-                style={{
-                  background: '#141414',
-                  border: '1px solid #242424',
-                  boxShadow: '0 8px 32px #00000060',
-                  minWidth: 160,
-                  right: 0,
-                }}
-              >
+              <div className="absolute top-full mt-2 rounded-xl py-1 z-50"
+                style={{ background: '#0d1525', border: '1px solid #1c2c42', boxShadow: '0 16px 40px rgba(0,0,0,0.6)', minWidth: 160, right: 0 }}>
                 {PRODUCTS.map(p => (
-                  <button
-                    key={p.page}
-                    onClick={() => { setDropdownOpen(false); onNav(p.page) }}
-                    className="w-full text-left px-4 py-2 text-xs"
-                    style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', display: 'block' }}
-                    onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = '#1c1c1c' }}
-                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.background = 'none' }}
-                  >
+                  <button key={p.page} onClick={() => { setDropdownOpen(false); onNav(p.page) }}
+                    className="w-full text-left px-4 py-2.5 text-sm"
+                    style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'block', fontFamily: 'inherit' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = '#131e38' }}
+                    onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'none' }}>
                     {p.label}
                   </button>
                 ))}
               </div>
             )}
           </div>
-
-          <span className="text-xs font-semibold mono" style={{ color: '#9daab6' }}>
-            Pricing
-          </span>
-
-          <button
-            onClick={onLogin}
-            className="text-xs font-medium"
-            style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer' }}
+          <span className="px-3 py-2 text-sm font-semibold" style={{ color: '#7c6fe0' }}>Pricing</span>
+          <button onClick={onLogin} className="px-3 py-2 rounded-lg text-sm"
+            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontFamily: 'inherit' }}
             onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}
-          >
-            Sign in
+            onMouseLeave={e => (e.currentTarget.style.color = '#94a3b8')}>
+            Log in
           </button>
-
-          <button
-            onClick={onGetStarted}
-            className="rounded px-4 py-2 text-xs font-semibold transition-all"
-            style={{ background: '#fff', color: '#0d0d0d', border: 'none', cursor: 'pointer' }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-          >
-            Get started
+          <button onClick={onGetStarted} className="rounded-lg px-4 py-2 text-sm font-semibold transition-all"
+            style={{ background: '#7c6fe0', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#6d61d4')}
+            onMouseLeave={e => (e.currentTarget.style.background = '#7c6fe0')}>
+            Launch Terminal →
           </button>
         </div>
       </nav>
 
       {/* Hero */}
       <section className="text-center pt-24 pb-16 px-6">
-        <p className="mono text-xs uppercase tracking-widest mb-4" style={{ color: '#9daab6' }}>
+        <p className="mono text-xs uppercase tracking-widest mb-4" style={{ color: '#7c6fe0', letterSpacing: '0.15em' }}>
           Pricing
         </p>
         <h1 className="font-extrabold mb-4" style={{ color: '#fff', fontSize: 'clamp(36px, 6vw, 64px)', letterSpacing: '-0.03em', lineHeight: 1.1 }}>
           Simple, transparent pricing.
         </h1>
-        <p className="text-sm mx-auto" style={{ color: 'var(--muted)', maxWidth: 480, lineHeight: 1.7 }}>
+        <p className="text-sm mx-auto text-center" style={{ color: '#64748b', maxWidth: 480, lineHeight: 1.7 }}>
           No per-query fees. No surprise bills. Cancel any time. All plans include access to the Effant dashboard.
         </p>
       </section>

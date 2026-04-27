@@ -6,824 +6,600 @@ import type { Page } from '../components/Layout'
 
 interface LandingProps {
   onGetStarted: (tier: string) => void
-  onLogin: () => void
-  onPrivacy: () => void
-  onTerms: () => void
-  onNav: (page: Page) => void
-  onPricing: () => void
+  onLogin:      () => void
+  onPrivacy:    () => void
+  onTerms:      () => void
+  onNav:        (page: Page) => void
+  onPricing:    () => void
 }
 
-// ─── Plan data ───────────────────────────────────────────────────────────────
+// ─── Palette ──────────────────────────────────────────────────────────────────
+const BG_DARK   = '#111827'
+const BG_LIGHT  = '#F8F5F2'
+const SURF_DARK = '#1a2234'
+const BD_DARK   = '#1f2937'
+const BD_LIGHT  = '#E7D3C1'
+const ACCENT    = '#C08457'
+const ACCENT2   = '#A06840'
+const TEXT_D    = '#F8F5F2'
+const TEXT_L    = '#111827'
+const MUTED_D   = '#9CA3AF'
+const MUTED_L   = '#6B7280'
+
+const WRAP: React.CSSProperties = { maxWidth: 1200, margin: '0 auto', padding: '0 48px', width: '100%' }
+const DOT_GRID: React.CSSProperties = {
+  backgroundImage: 'radial-gradient(circle, rgba(248,245,242,0.06) 1px, transparent 1px)',
+  backgroundSize: '24px 24px',
+}
 
 const STARTER_FEATURES = [
   'Live overview dashboard',
-  'Metrics tab with candlestick charts',
-  'Anomaly feed with click-through detail',
-  'Entity cluster explorer',
+  'Metrics + candlestick charts',
+  'Anomaly & cluster explorer',
   'Wallet Explorer',
   'No REST API',
 ]
-
 const ANALYST_FEATURES = [
   'Everything in Starter',
   'API Terminal access',
-  'REST API — 500 requests/month',
-  'Wallet profiling & risk scores',
+  'REST API — 500 req/month',
   'Real-time webhook alerts',
   'Email support',
 ]
-
 const ANALYST_PRO_FEATURES = [
   'Everything in Analyst',
-  'REST API — 10,000 requests/month',
+  'REST API — 10,000 req/month',
   'Priority support',
   'Sub-second cache TTL',
 ]
 
-// ─── PlanCard ─────────────────────────────────────────────────────────────────
+// ─── Glow Bars (hero visual) ──────────────────────────────────────────────────
+function GlowBars() {
+  const heights = [0.3, 0.55, 0.78, 0.6, 0.92, 0.72, 0.48, 0.84, 0.58, 0.38, 0.68, 0.94, 0.52, 0.66, 0.82, 0.44, 0.74, 0.36]
+  return (
+    <div style={{
+      position: 'absolute', bottom: 0, left: 0, right: 0,
+      height: '62%', display: 'flex', alignItems: 'flex-end',
+      justifyContent: 'center', gap: 7, pointerEvents: 'none', overflow: 'hidden',
+    }}>
+      {heights.map((h, i) => (
+        <div key={i} style={{
+          width: 48,
+          height: `${h * 100}%`,
+          background: `linear-gradient(to top, ${ACCENT}CC 0%, ${ACCENT}55 55%, ${ACCENT}11 85%, transparent 100%)`,
+          borderRadius: '5px 5px 0 0',
+        }} />
+      ))}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: '45%',
+        background: `linear-gradient(to top, ${BG_DARK}, transparent)`,
+        pointerEvents: 'none',
+      }} />
+    </div>
+  )
+}
 
-function PlanCard({
-  tier,
-  name,
-  price,
-  period,
-  features,
-  highlight,
-  enterprise,
-  onStart,
-}: {
-  tier: string
-  name: string
-  price: string
-  period: string
-  features: string[]
-  highlight: boolean
-  enterprise?: boolean
-  onStart: () => void
+// ─── PlanCard ─────────────────────────────────────────────────────────────────
+function PlanCard({ tier, name, price, period, features, highlight, onStart }: {
+  tier: string; name: string; price: string; period: string
+  features: string[]; highlight: boolean; onStart: () => void
 }) {
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
 
   async function handleClick() {
-    if (enterprise) return
     if (isLoggedIn()) {
-      setLoading(true)
-      setErr('')
+      setLoading(true); setErr('')
       try {
         const { url } = await createCheckoutSession(tier as BillingTier)
         window.location.href = url
-      } catch (e) {
-        setErr((e as Error).message)
-        setLoading(false)
-      }
-    } else {
-      onStart()
-    }
+      } catch (e) { setErr((e as Error).message); setLoading(false) }
+    } else { onStart() }
   }
 
-  const borderColor = enterprise ? '#ca8a04' : highlight ? '#9daab6' : '#242424'
-  const bgColor = highlight ? '#1a1a1a' : enterprise ? '#111100' : '#141414'
-
   return (
-    <div
-      className="rounded-lg flex flex-col"
-      style={{
-        background: bgColor,
-        border: `1px solid ${borderColor}`,
-        boxShadow: highlight ? '0 0 40px #9daab610' : enterprise ? '0 0 30px #ca8a0410' : 'none',
-      }}
-    >
+    <div style={{
+      background: '#FFFFFF',
+      border: `1.5px solid ${highlight ? ACCENT : BD_LIGHT}`,
+      borderRadius: 12, display: 'flex', flexDirection: 'column',
+      boxShadow: highlight ? `0 0 32px ${ACCENT}18` : 'none',
+      position: 'relative', overflow: 'hidden',
+    }}>
       {highlight && (
-        <div
-          className="text-center py-1.5 text-xs font-semibold mono tracking-widest uppercase rounded-t-lg"
-          style={{ background: '#9daab6', color: '#0d0d0d' }}
-        >
+        <div style={{
+          background: ACCENT, color: '#fff', textAlign: 'center', padding: '5px 0',
+          fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
+          fontFamily: 'JetBrains Mono, monospace', textTransform: 'uppercase',
+        }}>
           Most Popular
         </div>
       )}
-      {enterprise && (
-        <div
-          className="text-center py-1.5 text-xs font-semibold mono tracking-widest uppercase rounded-t-lg"
-          style={{ background: '#ca8a04', color: '#fff' }}
-        >
-          Enterprise
-        </div>
-      )}
-      <div className="p-6 flex flex-col flex-1">
-        <div className="mb-5">
-          <p className="mono text-xs uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>
-            {name}
-          </p>
-          <div className="flex items-baseline gap-1 mb-1">
-            <span className="text-3xl font-bold" style={{ color: '#fff' }}>{price}</span>
-            {period && <span className="text-sm" style={{ color: 'var(--muted)' }}>{period}</span>}
+      <div style={{ padding: 28, display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <div style={{ marginBottom: 20, textAlign: 'center' }}>
+          <p style={{ fontSize: 11, color: MUTED_L, letterSpacing: '0.1em', textTransform: 'uppercase',
+            fontFamily: 'JetBrains Mono, monospace', marginBottom: 8 }}>{name}</p>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4 }}>
+            <span style={{ fontSize: 38, fontWeight: 800, color: TEXT_L, letterSpacing: '-0.02em' }}>{price}</span>
+            {period && <span style={{ fontSize: 14, color: MUTED_L }}>{period}</span>}
           </div>
-          {enterprise && (
-            <p className="mono text-xs mt-1" style={{ color: '#ca8a04' }}>billing@effant.tech</p>
-          )}
         </div>
-
-        <ul className="space-y-2 mb-6 flex-1">
+        <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', flex: 1 }}>
           {features.map(f => (
-            <li key={f} className="flex items-start gap-2">
-              <span className="shrink-0 mt-0.5 text-xs" style={{ color: enterprise ? '#ca8a04' : 'var(--green)' }}>✓</span>
-              <span className="text-xs" style={{ color: 'var(--text)' }}>{f}</span>
+            <li key={f} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '5px 0',
+              fontSize: 13, color: TEXT_L, borderBottom: `1px solid ${BD_LIGHT}` }}>
+              <span style={{ color: ACCENT, flexShrink: 0, marginTop: 1 }}>✓</span>
+              {f}
             </li>
           ))}
         </ul>
-
-        {enterprise ? (
-          <a
-            href="mailto:billing@effant.tech"
-            className="w-full rounded py-2.5 text-xs font-semibold text-center block transition-all"
-            style={{
-              background: 'transparent',
-              border: '1px solid #ca8a04',
-              color: '#ca8a04',
-              textDecoration: 'none',
-            }}
-          >
-            Contact for pricing
-          </a>
-        ) : (
-          <>
-            <button
-              onClick={handleClick}
-              disabled={loading}
-              className="w-full rounded py-2.5 text-xs font-semibold transition-all"
-              style={{
-                background: highlight ? '#fff' : 'transparent',
-                border: `1px solid ${highlight ? '#fff' : '#242424'}`,
-                color: highlight ? '#0d0d0d' : 'var(--text)',
-                opacity: loading ? 0.6 : 1,
-                cursor: loading ? 'not-allowed' : 'pointer',
-              }}
-              onMouseEnter={e => {
-                if (!highlight) {
-                  e.currentTarget.style.borderColor = '#9daab6'
-                  e.currentTarget.style.color = '#fff'
-                }
-              }}
-              onMouseLeave={e => {
-                if (!highlight) {
-                  e.currentTarget.style.borderColor = '#242424'
-                  e.currentTarget.style.color = 'var(--text)'
-                }
-              }}
-            >
-              {loading ? 'Redirecting…' : `Get started`}
-            </button>
-            {err && (
-              <p className="mt-2 text-xs text-center" style={{ color: 'var(--red)' }}>{err}</p>
-            )}
-          </>
-        )}
+        <button onClick={handleClick} disabled={loading} style={{
+          width: '100%', padding: '11px 0', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+          background: highlight ? ACCENT : 'transparent',
+          border: `1.5px solid ${highlight ? ACCENT : BD_LIGHT}`,
+          color: highlight ? '#fff' : TEXT_L, opacity: loading ? 0.6 : 1,
+          fontFamily: 'inherit',
+        }}
+        onMouseEnter={e => { if (!highlight) { e.currentTarget.style.borderColor = ACCENT; e.currentTarget.style.color = ACCENT } }}
+        onMouseLeave={e => { if (!highlight) { e.currentTarget.style.borderColor = BD_LIGHT; e.currentTarget.style.color = TEXT_L } }}>
+          {loading ? 'Redirecting…' : 'Get started'}
+        </button>
+        {err && <p style={{ marginTop: 8, fontSize: 11, color: '#f43f5e', textAlign: 'center' }}>{err}</p>}
       </div>
-    </div>
-  )
-}
-
-// ─── Terminal window ──────────────────────────────────────────────────────────
-
-function TerminalWindow() {
-  return (
-    <div
-      className="rounded-xl overflow-hidden w-full"
-      style={{ border: '1px solid #242424', background: '#0a0a0a', maxWidth: 520 }}
-    >
-      {/* macOS title bar */}
-      <div
-        className="flex items-center px-4 py-3 gap-2"
-        style={{ background: '#111111', borderBottom: '1px solid #1c1c1c' }}
-      >
-        <span className="h-3 w-3 rounded-full" style={{ background: '#f43f5e' }} />
-        <span className="h-3 w-3 rounded-full" style={{ background: '#eab308' }} />
-        <span className="h-3 w-3 rounded-full" style={{ background: '#22c55e' }} />
-        <span className="mono text-xs ml-3" style={{ color: '#3c3c3c' }}>bash — effant api</span>
-      </div>
-      <pre
-        className="p-6 mono text-xs leading-relaxed overflow-x-auto"
-        style={{ color: '#9daab6', margin: 0 }}
-      >{`$ curl -H "X-API-Key: eff_sk_live_..." \\
-  "https://api.effant.tech/v1/anomalies\\
-?severity=critical&limit=1"
-
-`}<span style={{ color: '#686868' }}># Response</span>{`
-{
-  `}<span style={{ color: '#9daab6' }}>"data"</span>{`: [
-    {
-      `}<span style={{ color: '#9daab6' }}>"wallet_address"</span>{`: `}<span style={{ color: '#22c55e' }}>"6AvA8pyr..."</span>{`,
-      `}<span style={{ color: '#9daab6' }}>"anomaly_type"</span>{`:   `}<span style={{ color: '#22c55e' }}>"sandwich_attack"</span>{`,
-      `}<span style={{ color: '#9daab6' }}>"severity"</span>{`:       `}<span style={{ color: '#f43f5e' }}>"critical"</span>{`,
-      `}<span style={{ color: '#9daab6' }}>"confidence"</span>{`:     `}<span style={{ color: '#eab308' }}>0.97</span>{`,
-      `}<span style={{ color: '#9daab6' }}>"detected_at"</span>{`:    `}<span style={{ color: '#22c55e' }}>"2025-04-07T14:22:01Z"</span>{`
-    }
-  ],
-  `}<span style={{ color: '#9daab6' }}>"meta"</span>{`: { `}<span style={{ color: '#9daab6' }}>"count"</span>{`: `}<span style={{ color: '#eab308' }}>1</span>{` }
-}`}</pre>
     </div>
   )
 }
 
 // ─── Landing ──────────────────────────────────────────────────────────────────
-
 export function Landing({ onGetStarted, onLogin, onPrivacy, onTerms, onNav, onPricing }: LandingProps) {
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [productsOpen, setProductsOpen] = useState(false)
+  const [resourcesOpen, setResourcesOpen] = useState(false)
+  const [companyOpen, setCompanyOpen] = useState(false)
+  const navRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false)
+    const handler = (e: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) {
+        setProductsOpen(false); setResourcesOpen(false); setCompanyOpen(false)
       }
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const PRODUCTS: { label: string; page: Page }[] = [
-    { label: 'Overview',        page: 'overview'  },
-    { label: 'Metrics',         page: 'metrics'   },
-    { label: 'Wallet Explorer', page: 'explorer'  },
-    { label: 'Terminal',        page: 'terminal'  },
-    { label: 'API',             page: 'portal'    },
+  function closeAll() { setProductsOpen(false); setResourcesOpen(false); setCompanyOpen(false) }
+
+  const DROP_STYLE: React.CSSProperties = {
+    position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+    background: '#1a2234', border: `1px solid ${BD_DARK}`,
+    borderRadius: 10, padding: '6px 0', minWidth: 200, zIndex: 100,
+    boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+  }
+
+  const NAV_BTN: React.CSSProperties = {
+    background: 'none', border: 'none', color: MUTED_D, cursor: 'pointer',
+    fontSize: 14, fontWeight: 500, fontFamily: 'inherit', padding: '8px 12px',
+    borderRadius: 8, display: 'flex', alignItems: 'center', gap: 5,
+  }
+
+  const PRODUCTS: { label: string; page: Page; desc: string }[] = [
+    { label: 'Overview',        page: 'overview', desc: 'Real-time market dashboard'   },
+    { label: 'Metrics',         page: 'metrics',  desc: 'Deep-dive on-chain analytics' },
+    { label: 'Wallet Explorer', page: 'explorer', desc: 'Profile any Solana address'   },
+    { label: 'Terminal',        page: 'terminal', desc: 'Live transaction feed'         },
+    { label: 'API',             page: 'portal',   desc: 'REST API access & docs'       },
   ]
 
   return (
-    <div className="min-h-screen" style={{ background: '#0d0d0d', color: 'var(--text)' }}>
+    <div style={{ background: BG_DARK, color: TEXT_D, minHeight: '100vh', width: '100%' }}>
 
-      {/* ── Nav ── */}
-      <nav
-        className="sticky top-0 z-20 flex items-center justify-between px-8"
-        style={{
-          background: '#0d0d0d',
-          borderBottom: '1px solid #1c1c1c',
-          height: 60,
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <span className="mono font-bold" style={{ color: '#9daab6', fontSize: 15, letterSpacing: '0.05em' }}>
-            EFFANT
-          </span>
-          <span style={{ color: '#242424', userSelect: 'none' }}>|</span>
-          <span style={{ color: '#3c3c3c', fontSize: 11 }}>Solana Intelligence</span>
-        </div>
+      {/* ══ NAV ══════════════════════════════════════════════════════════════ */}
+      <nav style={{
+        position: 'sticky', top: 0, zIndex: 50, width: '100%',
+        background: `${BG_DARK}F0`, borderBottom: `1px solid ${BD_DARK}`,
+        backdropFilter: 'blur(12px)',
+      }}>
+        <div style={{ ...WRAP, display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 60 }}>
 
-        <div className="flex items-center gap-6">
-          {/* Products dropdown */}
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setDropdownOpen(v => !v)}
-              className="text-xs font-medium flex items-center gap-1"
-              style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}
-            >
-              Products <span style={{ fontSize: 10 }}>▼</span>
+          {/* Brand */}
+          <button onClick={() => {}} style={{ background: 'none', border: 'none', cursor: 'default', padding: 0,
+            display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+            <span style={{ fontWeight: 800, color: TEXT_D, fontSize: 16, letterSpacing: '0.04em' }}>EFFANT</span>
+          </button>
+
+          {/* Nav links */}
+          <div ref={navRef} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <div style={{ position: 'relative' }}>
+              <button style={NAV_BTN} onClick={() => { closeAll(); setProductsOpen(v => !v) }}
+                onMouseEnter={e => (e.currentTarget.style.color = TEXT_D)}
+                onMouseLeave={e => (e.currentTarget.style.color = MUTED_D)}>
+                Products <span style={{ fontSize: 9, opacity: 0.7 }}>▼</span>
+              </button>
+              {productsOpen && (
+                <div style={DROP_STYLE}>
+                  {PRODUCTS.map(p => (
+                    <button key={p.page} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 16px',
+                      background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+                      onClick={() => { closeAll(); onNav(p.page) }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#232e44')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: TEXT_D, marginBottom: 2 }}>{p.label}</div>
+                      <div style={{ fontSize: 11, color: MUTED_D }}>{p.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button style={NAV_BTN} onClick={onPricing}
+              onMouseEnter={e => (e.currentTarget.style.color = TEXT_D)}
+              onMouseLeave={e => (e.currentTarget.style.color = MUTED_D)}>
+              Pricing
             </button>
-            {dropdownOpen && (
-              <div
-                className="absolute top-full mt-2 rounded-lg py-1 z-50"
-                style={{
-                  background: '#141414',
-                  border: '1px solid #242424',
-                  boxShadow: '0 8px 32px #00000060',
-                  minWidth: 160,
-                  right: 0,
-                }}
-              >
-                {PRODUCTS.map(p => (
-                  <button
-                    key={p.page}
-                    onClick={() => { setDropdownOpen(false); onNav(p.page) }}
-                    className="w-full text-left px-4 py-2 text-xs"
-                    style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', display: 'block' }}
-                    onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = '#1c1c1c' }}
-                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.background = 'none' }}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            )}
+
+            <div style={{ position: 'relative' }}>
+              <button style={NAV_BTN} onClick={() => { closeAll(); setResourcesOpen(v => !v) }}
+                onMouseEnter={e => (e.currentTarget.style.color = TEXT_D)}
+                onMouseLeave={e => (e.currentTarget.style.color = MUTED_D)}>
+                Resources <span style={{ fontSize: 9, opacity: 0.7 }}>▼</span>
+              </button>
+              {resourcesOpen && (
+                <div style={DROP_STYLE}>
+                  {[
+                    { label: 'API Docs',      fn: () => onNav('portal') },
+                    { label: 'API Reference', fn: () => onNav('portal') },
+                  ].map(r => (
+                    <button key={r.label} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 16px',
+                      background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, color: TEXT_D }}
+                      onClick={() => { closeAll(); r.fn() }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#232e44')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{ position: 'relative' }}>
+              <button style={NAV_BTN} onClick={() => { closeAll(); setCompanyOpen(v => !v) }}
+                onMouseEnter={e => (e.currentTarget.style.color = TEXT_D)}
+                onMouseLeave={e => (e.currentTarget.style.color = MUTED_D)}>
+                Company <span style={{ fontSize: 9, opacity: 0.7 }}>▼</span>
+              </button>
+              {companyOpen && (
+                <div style={DROP_STYLE}>
+                  {['About', 'Contact'].map(c => (
+                    <button key={c} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 16px',
+                      background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, color: TEXT_D }}
+                      onClick={() => closeAll()}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#232e44')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
-          <button
-            onClick={onPricing}
-            className="text-xs font-medium"
-            style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer' }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}
-          >
-            Pricing
-          </button>
-
-          <button
-            onClick={onLogin}
-            className="text-xs font-medium"
-            style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer' }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}
-          >
-            Sign in
-          </button>
-
-          <button
-            onClick={() => onGetStarted('starter')}
-            className="rounded px-4 py-2 text-xs font-semibold transition-all"
-            style={{ background: '#fff', color: '#0d0d0d', border: 'none', cursor: 'pointer' }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-          >
-            Get started
-          </button>
+          {/* Right CTAs */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+            <button onClick={onLogin} style={{ ...NAV_BTN, padding: '8px 16px' }}
+              onMouseEnter={e => (e.currentTarget.style.color = TEXT_D)}
+              onMouseLeave={e => (e.currentTarget.style.color = MUTED_D)}>
+              Log in
+            </button>
+            <button onClick={() => onGetStarted('analyst')} style={{
+              padding: '9px 18px', background: ACCENT, color: '#fff', border: 'none',
+              borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = ACCENT2)}
+            onMouseLeave={e => (e.currentTarget.style.background = ACCENT)}>
+              Get Started →
+            </button>
+          </div>
         </div>
       </nav>
 
-      {/* ── Section 1: Hero ── */}
-      <section
-        className="px-6 flex flex-col items-center justify-center text-center"
-        style={{ minHeight: 'calc(100vh - 60px)', paddingTop: 48, paddingBottom: 64 }}
-      >
-        <p className="mono text-xs uppercase tracking-widest mb-6" style={{ color: '#9daab6', letterSpacing: '0.18em' }}>
-          REST API · Solana Intelligence
-        </p>
-        <h1
-          className="font-extrabold leading-none mb-6 mx-auto"
-          style={{
-            fontSize: 'clamp(48px, 7vw, 86px)',
-            letterSpacing: '-0.035em',
-            color: '#fff',
-            maxWidth: 860,
-          }}
-        >
-          Solana on-chain intelligence,{' '}
-          <span style={{ color: '#9daab6' }}>delivered as an API.</span>
-        </h1>
-        <p
-          className="text-base mb-10 mx-auto"
-          style={{ color: '#686868', lineHeight: 1.75, maxWidth: 540 }}
-        >
-          Wallet profiling, anomaly detection, entity clustering, and whale tracking — all via a single REST API. From raw transactions to actionable signal in milliseconds.
-        </p>
-        <div className="flex items-center justify-center gap-3 flex-wrap mb-6">
-          <button
-            onClick={() => onGetStarted('starter')}
-            className="rounded px-7 py-3 font-semibold text-sm transition-all"
-            style={{ background: '#fff', color: '#0d0d0d', border: 'none', cursor: 'pointer' }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-          >
-            Get started →
-          </button>
-          <button
-            onClick={onPricing}
-            className="rounded px-7 py-3 font-semibold text-sm transition-all"
-            style={{ background: 'transparent', border: '1px solid #313131', color: '#9daab6', cursor: 'pointer' }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = '#9daab6')}
-            onMouseLeave={e => (e.currentTarget.style.borderColor = '#313131')}
-          >
-            View pricing
-          </button>
-        </div>
-        <div className="flex items-center justify-center gap-2 mb-14">
-          <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: 'var(--green)', flexShrink: 0 }} />
-          <span className="mono text-xs" style={{ color: '#3c3c3c' }}>LIVE · updating every 30s</span>
-        </div>
-        {/* Terminal window centered below CTAs */}
-        <div className="w-full flex justify-center">
-          <div style={{ maxWidth: 640, width: '100%' }}>
-            <TerminalWindow />
+      {/* ══ HERO ═════════════════════════════════════════════════════════════ */}
+      <section style={{ width: '100%', position: 'relative', overflow: 'hidden', ...DOT_GRID,
+        minHeight: 580, display: 'flex', alignItems: 'center' }}>
+        <div style={{ ...WRAP, textAlign: 'center', position: 'relative', zIndex: 2, paddingTop: 80, paddingBottom: 120 }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: `${ACCENT}15`, border: `1px solid ${ACCENT}40`,
+            borderRadius: 999, padding: '6px 16px', marginBottom: 32,
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'block', boxShadow: '0 0 6px #22c55e' }} />
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#22c55e', fontWeight: 500 }}>
+              LIVE · Real-time data from Solana Mainnet
+            </span>
           </div>
-        </div>
-      </section>
 
-      {/* ── Section 2: Live stats strip ── */}
-      <section style={{ borderTop: '1px solid #1c1c1c', borderBottom: '1px solid #1c1c1c' }}>
-        <div className="grid grid-cols-2 lg:grid-cols-4">
-          {[
-            { label: 'Anomalies Detected',   value: '367,867+', sub: 'flagged events'         },
-            { label: 'Wallets Indexed',       value: '158,578+', sub: 'profiled addresses'     },
-            { label: 'Transactions',          value: '1.5M+',    sub: 'on-chain records'       },
-            { label: 'Wash Trades Flagged',   value: '295,000+', sub: 'detected patterns'      },
-          ].map(({ label, value, sub }, i) => (
-            <div
-              key={label}
-              className="flex flex-col items-center text-center gap-1 px-8 py-10"
-              style={{
-                background: '#0d0d0d',
-                borderRight: i < 3 ? '1px solid #1c1c1c' : 'none',
-              }}
-            >
-              <p className="mono text-xs uppercase tracking-widest mb-1" style={{ color: '#9daab6' }}>{label}</p>
-              <p
-                className="mono font-bold tabular-nums"
-                style={{ color: '#fff', fontSize: 32, letterSpacing: '-0.04em', lineHeight: 1 }}
-              >
-                {value}
-              </p>
-              <p className="text-xs mt-2" style={{ color: '#3c3c3c' }}>{sub}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+          <h1 style={{
+            fontSize: 'clamp(40px, 5.5vw, 72px)', fontWeight: 800, lineHeight: 1.08,
+            letterSpacing: '-0.03em', color: TEXT_D, marginBottom: 24, maxWidth: 820, margin: '0 auto 24px',
+          }}>
+            See Everything Moving<br />on Solana.
+          </h1>
 
-      {/* ── Section 3: What EFFANT detects ── */}
-      <section className="px-6 mx-auto py-32" style={{ maxWidth: 1200 }}>
-        <div className="text-center mb-16">
-          <p className="mono text-xs uppercase tracking-widest mb-4" style={{ color: '#9daab6', letterSpacing: '0.15em' }}>
-            Intelligence · What We Detect
+          <p style={{ fontSize: 18, color: MUTED_D, lineHeight: 1.7, marginBottom: 40, maxWidth: 520, margin: '0 auto 40px' }}>
+            Institutional-grade on-chain intelligence. Track wallets, decode transactions, and uncover market-moving signals — in real time.
           </p>
-          <h2
-            className="font-extrabold"
-            style={{ color: '#fff', fontSize: 'clamp(28px, 4vw, 44px)', letterSpacing: '-0.03em', lineHeight: 1.1 }}
-          >
-            Every anomaly. Every whale.<br />Every coordinated move.
-          </h2>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card 1: Anomaly Detection */}
-          <div
-            className="rounded-xl p-8"
-            style={{ background: '#111111', border: '1px solid #242424' }}
-          >
-            <span
-              className="inline-block mono text-xs uppercase tracking-widest px-2.5 py-1 rounded mb-5"
-              style={{ background: '#9daab620', color: '#9daab6', border: '1px solid #9daab630' }}
-            >
-              Anomaly Detection
-            </span>
-            <h3 className="font-bold mb-3 text-lg" style={{ color: '#fff', lineHeight: 1.2 }}>
-              Catch wash trading before it moves markets
-            </h3>
-            <p className="text-sm mb-6" style={{ color: '#686868', lineHeight: 1.7 }}>
-              Real-time detection of sandwich attacks, wash trading, and coordinated manipulation. Every flagged event includes confidence scores and wallet attribution.
-            </p>
-            {/* Mini anomaly list visual */}
-            <div className="rounded-lg p-4" style={{ background: '#0d0d0d', border: '1px solid #1c1c1c' }}>
-              {[
-                { type: 'sandwich_attack', sev: 'CRITICAL', color: '#f43f5e' },
-                { type: 'wash_trade',      sev: 'HIGH',     color: '#f97316' },
-                { type: 'coordinated_buy', sev: 'MEDIUM',   color: '#eab308' },
-              ].map(item => (
-                <div key={item.type} className="flex items-center justify-between py-1.5 border-b last:border-0" style={{ borderColor: '#1c1c1c' }}>
-                  <span className="mono text-xs" style={{ color: '#9daab6' }}>{item.type}</span>
-                  <span className="mono text-xs font-bold" style={{ color: item.color }}>{item.sev}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Card 2: Wallet Profiling */}
-          <div
-            className="rounded-xl p-8"
-            style={{ background: '#111111', border: '1px solid #242424' }}
-          >
-            <span
-              className="inline-block mono text-xs uppercase tracking-widest px-2.5 py-1 rounded mb-5"
-              style={{ background: '#9daab620', color: '#9daab6', border: '1px solid #9daab630' }}
-            >
-              Wallet Profiling
-            </span>
-            <h3 className="font-bold mb-3 text-lg" style={{ color: '#fff', lineHeight: 1.2 }}>
-              Know who's moving capital before you do
-            </h3>
-            <p className="text-sm mb-6" style={{ color: '#686868', lineHeight: 1.7 }}>
-              Every wallet gets a risk score, behavioral profile, and transaction history summary. Identify whales, bots, and smart money in real time.
-            </p>
-            {/* Mini wallet card visual */}
-            <div className="rounded-lg p-4" style={{ background: '#0d0d0d', border: '1px solid #1c1c1c' }}>
-              <div className="flex items-center justify-between mb-3">
-                <span className="mono text-xs" style={{ color: '#686868' }}>6AvA8pyr...mK9</span>
-                <span className="mono text-xs font-bold px-2 py-0.5 rounded" style={{ background: '#f43f5e20', color: '#f43f5e' }}>HIGH RISK</span>
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs">
-                  <span style={{ color: '#686868' }}>Risk score</span>
-                  <span className="mono font-bold" style={{ color: '#f43f5e' }}>87 / 100</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span style={{ color: '#686868' }}>Anomalies</span>
-                  <span className="mono font-bold" style={{ color: '#fff' }}>12</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span style={{ color: '#686868' }}>Label</span>
-                  <span className="mono font-bold" style={{ color: '#eab308' }}>bot</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: Entity Clustering */}
-          <div
-            className="rounded-xl p-8"
-            style={{ background: '#111111', border: '1px solid #242424' }}
-          >
-            <span
-              className="inline-block mono text-xs uppercase tracking-widest px-2.5 py-1 rounded mb-5"
-              style={{ background: '#9daab620', color: '#9daab6', border: '1px solid #9daab630' }}
-            >
-              Entity Clustering
-            </span>
-            <h3 className="font-bold mb-3 text-lg" style={{ color: '#fff', lineHeight: 1.2 }}>
-              See the hidden networks behind wallets
-            </h3>
-            <p className="text-sm mb-6" style={{ color: '#686868', lineHeight: 1.7 }}>
-              Group wallets by behavioral patterns to surface coordinated actors. Cluster analysis reveals connections invisible in raw transaction data.
-            </p>
-            {/* Mini cluster diagram using CSS boxes */}
-            <div className="rounded-lg p-4 relative" style={{ background: '#0d0d0d', border: '1px solid #1c1c1c', height: 100 }}>
-              {/* Center node */}
-              <div
-                className="absolute rounded-full flex items-center justify-center mono text-xs font-bold"
-                style={{ width: 36, height: 36, background: '#9daab620', border: '1px solid #9daab6', color: '#9daab6', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }}
-              >
-                C1
-              </div>
-              {/* Satellite nodes */}
-              {[
-                { top: '10%',  left: '15%' },
-                { top: '10%',  left: '75%' },
-                { top: '65%',  left: '10%' },
-                { top: '65%',  left: '78%' },
-              ].map((pos, i) => (
-                <div
-                  key={i}
-                  className="absolute rounded-full"
-                  style={{ width: 16, height: 16, background: '#1c1c1c', border: '1px solid #313131', ...pos }}
-                />
-              ))}
-              {/* Lines (pure CSS, simplified) */}
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                <div style={{ width: '65%', height: 1, background: 'linear-gradient(90deg, #9daab630, #9daab610)', position: 'absolute' }} />
-                <div style={{ width: 1, height: '65%', background: 'linear-gradient(180deg, #9daab630, #9daab610)', position: 'absolute' }} />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Section 4: API showcase ── */}
-      <section className="px-6 py-32 mx-auto" style={{ maxWidth: 1200, borderTop: '1px solid #1c1c1c' }}>
-        <div className="flex flex-col lg:flex-row items-start gap-16">
-          {/* Left */}
-          <div className="flex-1" style={{ maxWidth: 440 }}>
-            <p className="mono text-xs uppercase tracking-widest mb-4" style={{ color: '#9daab6', letterSpacing: '0.15em' }}>
-              API · Integration
-            </p>
-            <h2
-              className="font-extrabold mb-5"
-              style={{ color: '#fff', fontSize: 'clamp(26px, 3.5vw, 40px)', letterSpacing: '-0.03em', lineHeight: 1.15 }}
-            >
-              One header.<br />Everything you need.
-            </h2>
-            <p className="text-sm mb-8" style={{ color: '#686868', lineHeight: 1.7 }}>
-              No SDKs. No complex setup. A single API key unlocks wallet profiling, anomaly detection, entity clustering, and real-time alerts. Integrate in under 5 minutes.
-            </p>
-            <ul className="space-y-3">
-              {[
-                'Single REST endpoint, JSON responses',
-                'Anomaly detection with severity scores',
-                'Wallet risk profiles on demand',
-                'Entity cluster lookups',
-                'Webhook delivery for live events',
-                '99.9% uptime SLA on Fund+ plans',
-              ].map(item => (
-                <li key={item} className="flex items-center gap-3 text-sm">
-                  <span style={{ color: 'var(--green)', flexShrink: 0 }}>✓</span>
-                  <span style={{ color: '#e0e0e0' }}>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Right: code block */}
-          <div className="flex-1 w-full">
-            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #242424', background: '#0a0a0a' }}>
-              <div
-                className="flex items-center px-4 py-3 gap-2"
-                style={{ background: '#111111', borderBottom: '1px solid #1c1c1c' }}
-              >
-                <span className="h-3 w-3 rounded-full" style={{ background: '#f43f5e' }} />
-                <span className="h-3 w-3 rounded-full" style={{ background: '#eab308' }} />
-                <span className="h-3 w-3 rounded-full" style={{ background: '#22c55e' }} />
-                <span className="mono text-xs ml-3" style={{ color: '#3c3c3c' }}>REST API · curl</span>
-              </div>
-              <pre
-                className="p-6 mono text-xs leading-relaxed overflow-x-auto"
-                style={{ color: '#9daab6', margin: 0 }}
-              >{`curl https://api.effant.tech/v1/wallets/6AvA8pyr \\
-  -H "X-API-Key: eff_sk_live_..."
-
-{
-  "wallet_address": "6AvA8pyr...mK9",
-  "risk_score":     87,
-  "label":          "bot",
-  "anomalies": [
-    {
-      "type":       "sandwich_attack",
-      "severity":   "critical",
-      "count":      4,
-      "last_seen":  "2025-04-07T14:22:01Z"
-    }
-  ],
-  "clusters": ["cluster_id_0042"],
-  "meta": {
-    "tx_count":    1247,
-    "first_seen":  "2024-11-01T00:00:00Z"
-  }
-}`}</pre>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Section 5: How it works ── */}
-      <section className="px-6 py-32 mx-auto" style={{ maxWidth: 1200, borderTop: '1px solid #1c1c1c' }}>
-        <div className="text-center mb-16">
-          <p className="mono text-xs uppercase tracking-widest mb-4" style={{ color: '#9daab6', letterSpacing: '0.15em' }}>
-            Pipeline · How It Works
-          </p>
-          <h2
-            className="font-extrabold"
-            style={{ color: '#fff', fontSize: 'clamp(28px, 4vw, 44px)', letterSpacing: '-0.03em', lineHeight: 1.1 }}
-          >
-            From block to signal in seconds.
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-0 relative">
-          {/* Connecting line (desktop) */}
-          <div
-            className="hidden md:block absolute"
-            style={{
-              top: 28,
-              left: '12.5%',
-              right: '12.5%',
-              height: 1,
-              background: 'linear-gradient(90deg, #9daab640, #9daab620)',
+          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button onClick={() => onGetStarted('analyst')} style={{
+              padding: '14px 28px', background: ACCENT, color: '#fff', border: 'none',
+              borderRadius: 8, fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
             }}
-          />
+            onMouseEnter={e => (e.currentTarget.style.background = ACCENT2)}
+            onMouseLeave={e => (e.currentTarget.style.background = ACCENT)}>
+              Launch Terminal →
+            </button>
+            <button onClick={onLogin} style={{
+              padding: '14px 28px', background: 'transparent', color: TEXT_D,
+              border: `1px solid ${BD_DARK}`, borderRadius: 8, fontSize: 15, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = ACCENT; e.currentTarget.style.color = ACCENT }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = BD_DARK; e.currentTarget.style.color = TEXT_D }}>
+              View Live Demo
+            </button>
+          </div>
 
-          {[
-            {
-              n: '01',
-              title: 'Solana RPC',
-              desc: 'Raw block data ingested directly from Solana validator nodes in real time.',
-            },
-            {
-              n: '02',
-              title: 'Ingest',
-              desc: 'Parse and store 1.5M+ transactions. Normalize instruction data for analysis.',
-            },
-            {
-              n: '03',
-              title: 'Analyze',
-              desc: 'Detect anomalies, label wallets, cluster entities. ML models run on every block.',
-            },
-            {
-              n: '04',
-              title: 'API',
-              desc: 'Clean JSON delivered to your application. Webhooks available for live events.',
-            },
-          ].map(step => (
-            <div key={step.n} className="flex flex-col items-center text-center px-6 relative">
-              <div
-                className="mono font-bold text-sm mb-4 h-14 w-14 rounded-full flex items-center justify-center z-10"
-                style={{ background: '#141414', border: '1px solid #9daab6', color: '#9daab6' }}
-              >
-                {step.n}
+          <div style={{ display: 'flex', gap: 32, justifyContent: 'center', marginTop: 40, flexWrap: 'wrap' }}>
+            {['⚡ Real-time feeds', '◈ Institutional API', '✓ 99.9% Uptime'].map(b => (
+              <span key={b} style={{ fontSize: 13, color: MUTED_D }}>{b}</span>
+            ))}
+          </div>
+        </div>
+        <GlowBars />
+      </section>
+
+      {/* ══ TRUST STRIP ══════════════════════════════════════════════════════ */}
+      <section style={{ width: '100%', borderTop: `1px solid ${BD_DARK}`, borderBottom: `1px solid ${BD_DARK}`, ...DOT_GRID }}>
+        <div style={{ ...WRAP, padding: '36px 48px' }}>
+          <p style={{ textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+            color: '#374151', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 24 }}>
+            Trusted by leading teams
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 52, flexWrap: 'wrap' }}>
+            {['CMS', 'Wintermute', 'Jump Trading', 'Delphi Digital', 'Brevan Howard'].map(name => (
+              <span key={name} style={{ fontSize: 14, fontWeight: 700, color: '#2d3748', letterSpacing: '-0.01em' }}>{name}</span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══ FEATURES ═════════════════════════════════════════════════════════ */}
+      <section style={{ width: '100%', background: BG_LIGHT, padding: '96px 0' }}>
+        <div style={{ ...WRAP }}>
+          <div style={{ textAlign: 'center', marginBottom: 60 }}>
+            <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: ACCENT,
+              textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 16 }}>Products</p>
+            <h2 style={{ fontSize: 'clamp(28px, 3.5vw, 44px)', fontWeight: 800, color: TEXT_L,
+              letterSpacing: '-0.03em', lineHeight: 1.1 }}>
+              Everything you need to stay ahead
+            </h2>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
+            {[
+              {
+                icon: '◈',
+                title: 'Wallet Intelligence',
+                desc: 'Track smart money and whale activity across Solana in real time. Profile any address instantly.',
+                cta: 'Open Explorer →', page: 'explorer' as Page,
+              },
+              {
+                icon: '⚡',
+                title: 'Live Transaction Feed',
+                desc: 'Get granular insight into every swap, transfer, and on-chain event as it happens.',
+                cta: 'Open Terminal →', page: 'terminal' as Page,
+              },
+              {
+                icon: '▦',
+                title: 'Market Analytics',
+                desc: 'Real-time charts, volume breakdowns, and anomaly detection built for serious decision-makers.',
+                cta: 'View Metrics →', page: 'metrics' as Page,
+              },
+            ].map(card => (
+              <div key={card.title} style={{
+                background: '#FFFFFF', border: `1.5px solid ${BD_LIGHT}`, borderRadius: 12, padding: 32,
+                transition: 'border-color 0.2s, box-shadow 0.2s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = ACCENT
+                e.currentTarget.style.boxShadow = `0 0 0 3px ${ACCENT}15`
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = BD_LIGHT
+                e.currentTarget.style.boxShadow = 'none'
+              }}>
+                <div style={{ width: 44, height: 44, background: `${ACCENT}15`,
+                  border: `1px solid ${ACCENT}30`, borderRadius: 10,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20,
+                  fontSize: 18, color: ACCENT }}>
+                  {card.icon}
+                </div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: TEXT_L, marginBottom: 10 }}>{card.title}</h3>
+                <p style={{ fontSize: 14, color: MUTED_L, lineHeight: 1.75, marginBottom: 20 }}>{card.desc}</p>
+                <button onClick={() => onNav(card.page)} style={{
+                  background: 'none', border: 'none', color: ACCENT, cursor: 'pointer',
+                  fontSize: 14, fontWeight: 600, padding: 0, fontFamily: 'inherit',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = ACCENT2)}
+                onMouseLeave={e => (e.currentTarget.style.color = ACCENT)}>
+                  {card.cta}
+                </button>
               </div>
-              <h3 className="font-semibold mb-2" style={{ color: '#fff', fontSize: 15 }}>{step.title}</h3>
-              <p className="text-xs" style={{ color: '#686868', lineHeight: 1.7 }}>{step.desc}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* ── Section 6: Pricing preview ── */}
-      <section className="px-6 py-32 mx-auto" style={{ maxWidth: 1200, borderTop: '1px solid #1c1c1c' }}>
-        <div className="text-center mb-12">
-          <p className="mono text-xs uppercase tracking-widest mb-4" style={{ color: '#9daab6', letterSpacing: '0.15em' }}>
-            Pricing
-          </p>
-          <h2
-            className="font-extrabold mb-4"
-            style={{ color: '#fff', fontSize: 'clamp(28px, 4vw, 44px)', letterSpacing: '-0.03em', lineHeight: 1.1 }}
-          >
-            Start for $20. Scale to enterprise.
+      {/* ══ STATS / SCALE ════════════════════════════════════════════════════ */}
+      <section style={{ width: '100%', background: BG_DARK, padding: '96px 0', ...DOT_GRID }}>
+        <div style={{ ...WRAP, textAlign: 'center' }}>
+          <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: ACCENT,
+            textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 16 }}>Scale</p>
+          <h2 style={{ fontSize: 'clamp(28px, 4.5vw, 58px)', fontWeight: 800, color: TEXT_D,
+            letterSpacing: '-0.03em', lineHeight: 1.1, marginBottom: 16, maxWidth: 800, margin: '0 auto 16px' }}>
+            Effant processes 2.4M+ transactions daily — with zero latency compromise.
           </h2>
-          <p className="text-sm" style={{ color: '#686868' }}>
-            No per-query fees. No surprise bills. Cancel any time.
+          <p style={{ fontSize: 16, color: MUTED_D, marginBottom: 64, maxWidth: 480, margin: '16px auto 64px' }}>
+            The only Solana intelligence platform built from the ground up for institutional speed.
           </p>
-        </div>
 
-        {/* 3 cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
-          <PlanCard
-            tier="starter"
-            name="Starter"
-            price="$20"
-            period="/month"
-            features={STARTER_FEATURES}
-            highlight={false}
-            onStart={() => onGetStarted('starter')}
-          />
-          <PlanCard
-            tier="analyst"
-            name="Analyst"
-            price="$100"
-            period="/month"
-            features={ANALYST_FEATURES}
-            highlight
-            onStart={() => onGetStarted('analyst')}
-          />
-          <PlanCard
-            tier="analyst_pro"
-            name="Analyst Pro"
-            price="$500"
-            period="/month"
-            features={ANALYST_PRO_FEATURES}
-            highlight={false}
-            onStart={() => onGetStarted('analyst_pro')}
-          />
-        </div>
-
-        {/* Fund + Enterprise compact row */}
-        <div
-          className="rounded-xl px-8 py-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
-          style={{ background: '#111111', border: '1px solid #242424' }}
-        >
-          <div className="flex items-center gap-8">
-            <div>
-              <span className="mono text-xs uppercase tracking-widest" style={{ color: '#9daab6' }}>Fund</span>
-              <span className="ml-3 font-bold text-lg" style={{ color: '#fff' }}>$1,200</span>
-              <span className="text-sm ml-1" style={{ color: '#686868' }}>/month</span>
-            </div>
-            <span style={{ color: '#242424' }}>·</span>
-            <div>
-              <span className="mono text-xs uppercase tracking-widest" style={{ color: '#ca8a04' }}>Enterprise</span>
-              <span className="ml-3 font-bold text-lg" style={{ color: '#fff' }}>Custom</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <a
-              href="mailto:billing@effant.tech"
-              className="rounded px-4 py-2 text-xs font-semibold transition-all"
-              style={{ background: 'transparent', border: '1px solid #ca8a04', color: '#ca8a04', textDecoration: 'none' }}
-            >
-              Contact for Enterprise
-            </a>
-            <button
-              onClick={onPricing}
-              className="rounded px-4 py-2 text-xs font-semibold transition-all"
-              style={{ background: 'transparent', border: '1px solid #313131', color: '#9daab6', cursor: 'pointer' }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = '#9daab6')}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = '#313131')}
-            >
-              View all plans →
-            </button>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: BD_DARK, border: `1px solid ${BD_DARK}`, borderRadius: 12, overflow: 'hidden' }}>
+            {[
+              { value: '2.4M+',   label: 'Transactions / day'    },
+              { value: '<100ms',  label: 'Data latency'           },
+              { value: '99.9%',   label: 'Uptime SLA'             },
+              { value: '50K+',    label: 'Wallets tracked live'   },
+            ].map(s => (
+              <div key={s.label} style={{ background: SURF_DARK, padding: '40px 24px', textAlign: 'center' }}>
+                <div style={{ fontSize: 'clamp(28px, 3vw, 42px)', fontWeight: 800, color: TEXT_D,
+                  letterSpacing: '-0.03em', marginBottom: 8, fontFamily: 'JetBrains Mono, monospace' }}>{s.value}</div>
+                <div style={{ fontSize: 13, color: MUTED_D }}>{s.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ── Footer ── */}
-      <footer
-        className="px-8 py-12"
-        style={{ borderTop: '1px solid #1c1c1c' }}
-      >
-        <div className="mx-auto flex flex-col md:flex-row items-center md:items-start justify-between gap-6" style={{ maxWidth: 1200 }}>
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <span className="mono font-bold" style={{ color: '#9daab6', fontSize: 14, letterSpacing: '0.05em' }}>EFFANT</span>
-              <span style={{ color: '#242424' }}>|</span>
-              <span className="text-xs" style={{ color: '#3c3c3c' }}>Solana Intelligence Platform</span>
+      {/* ══ API PROMO ════════════════════════════════════════════════════════ */}
+      <section style={{ width: '100%', background: BG_LIGHT, padding: '96px 0' }}>
+        <div style={{ ...WRAP }}>
+          <div style={{
+            background: BG_DARK, border: `1px solid ${BD_DARK}`, borderRadius: 16,
+            padding: '56px 60px', display: 'flex', alignItems: 'center', gap: 64,
+            ...DOT_GRID,
+          }}>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: ACCENT,
+                textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 16 }}>Built for Builders</p>
+              <h2 style={{ fontSize: 'clamp(22px, 3vw, 36px)', fontWeight: 800, color: TEXT_D,
+                letterSpacing: '-0.02em', lineHeight: 1.15, marginBottom: 16 }}>
+                Power your product with the <span style={{ color: ACCENT }}>Effant API</span>
+              </h2>
+              <p style={{ fontSize: 15, color: MUTED_D, lineHeight: 1.75, marginBottom: 28 }}>
+                Institutional-grade data infrastructure for trading bots, dashboards, and analytics platforms. One API key. Full Solana access.
+              </p>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <button onClick={() => onNav('portal')} style={{
+                  padding: '11px 20px', background: 'transparent', color: TEXT_D,
+                  border: `1px solid ${BD_DARK}`, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = ACCENT; e.currentTarget.style.color = ACCENT }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = BD_DARK; e.currentTarget.style.color = TEXT_D }}>
+                  Explore API Docs
+                </button>
+                <button onClick={() => onGetStarted('analyst')} style={{
+                  padding: '11px 20px', background: ACCENT, color: '#fff',
+                  border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = ACCENT2)}
+                onMouseLeave={e => (e.currentTarget.style.background = ACCENT)}>
+                  Get API Key
+                </button>
+              </div>
             </div>
-            <p className="text-xs" style={{ color: '#3c3c3c' }}>billing@effant.tech</p>
+
+            {/* Code block */}
+            <div style={{ flexShrink: 0, width: 340 }}>
+              <div style={{ background: '#0d1117', border: `1px solid ${BD_DARK}`, borderRadius: 10, overflow: 'hidden' }}>
+                <div style={{ background: '#161d2b', borderBottom: `1px solid ${BD_DARK}`, padding: '10px 14px', display: 'flex', gap: 6 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f43f5e', display: 'block' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#eab308', display: 'block' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e', display: 'block' }} />
+                </div>
+                <pre style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#9CA3AF',
+                  margin: 0, padding: '18px 16px', lineHeight: 1.8, overflowX: 'auto' }}>
+                  <span style={{ color: '#C08457' }}>GET</span>{' '}<span style={{ color: '#F8F5F2' }}>/v1/transactions/live</span>{'\n\n'}
+                  <span style={{ color: '#374151' }}>{`{`}</span>{'\n'}
+                  <span style={{ color: '#4B5563' }}>{'  '}</span><span style={{ color: '#7dd3fc' }}>"network"</span><span style={{ color: '#374151' }}>: </span><span style={{ color: '#86efac' }}>"solana"</span>,{'\n'}
+                  <span style={{ color: '#4B5563' }}>{'  '}</span><span style={{ color: '#7dd3fc' }}>"limit"</span><span style={{ color: '#374151' }}>: </span><span style={{ color: '#fdba74' }}>100</span>{'\n'}
+                  <span style={{ color: '#374151' }}>{`}`}</span>
+                </pre>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={onPrivacy}
-              className="mono text-xs"
-              style={{ background: 'none', border: 'none', color: 'var(--dim)', cursor: 'pointer', padding: 0 }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#9daab6')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--dim)')}
-            >
-              Privacy Policy
-            </button>
-            <span style={{ color: 'var(--dim)' }}>·</span>
-            <button
-              onClick={onTerms}
-              className="mono text-xs"
-              style={{ background: 'none', border: 'none', color: 'var(--dim)', cursor: 'pointer', padding: 0 }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#9daab6')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--dim)')}
-            >
-              Terms of Service
-            </button>
+        </div>
+      </section>
+
+      {/* ══ PRICING ══════════════════════════════════════════════════════════ */}
+      <section style={{ width: '100%', background: BG_DARK, padding: '96px 0', ...DOT_GRID }}>
+        <div style={{ ...WRAP }}>
+          <div style={{ textAlign: 'center', marginBottom: 56 }}>
+            <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: ACCENT,
+              textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 16 }}>Pricing</p>
+            <h2 style={{ fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 800, color: TEXT_D,
+              letterSpacing: '-0.03em', marginBottom: 14 }}>
+              Start for $20. Scale to enterprise.
+            </h2>
+            <p style={{ fontSize: 15, color: MUTED_D }}>No per-query fees. No surprise bills. Cancel any time.</p>
           </div>
-          <p className="mono text-xs" style={{ color: '#3c3c3c' }}>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 20 }}>
+            <PlanCard tier="starter"     name="Starter"     price="$20"  period="/month" features={STARTER_FEATURES}     highlight={false} onStart={() => onGetStarted('starter')}     />
+            <PlanCard tier="analyst"     name="Analyst"     price="$100" period="/month" features={ANALYST_FEATURES}     highlight         onStart={() => onGetStarted('analyst')}     />
+            <PlanCard tier="analyst_pro" name="Analyst Pro" price="$500" period="/month" features={ANALYST_PRO_FEATURES} highlight={false} onStart={() => onGetStarted('analyst_pro')} />
+          </div>
+
+          {/* Fund + Enterprise row */}
+          <div style={{ background: SURF_DARK, border: `1px solid ${BD_DARK}`, borderRadius: 12,
+            padding: '20px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 36 }}>
+              <div>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: MUTED_D, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Fund</span>
+                <span style={{ fontSize: 22, fontWeight: 800, color: TEXT_D, marginLeft: 12 }}>$1,200</span>
+                <span style={{ fontSize: 13, color: MUTED_D, marginLeft: 4 }}>/month</span>
+              </div>
+              <span style={{ color: BD_DARK }}>·</span>
+              <div>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: ACCENT, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Enterprise</span>
+                <span style={{ fontSize: 22, fontWeight: 800, color: TEXT_D, marginLeft: 12 }}>Custom</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <a href="mailto:billing@effant.tech" style={{ padding: '9px 16px', border: `1px solid ${ACCENT}`,
+                color: ACCENT, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+                Contact for Enterprise
+              </a>
+              <button onClick={onPricing} style={{ padding: '9px 16px', background: 'transparent', border: `1px solid ${BD_DARK}`,
+                color: TEXT_D, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = ACCENT)}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = BD_DARK)}>
+                View all plans →
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ FOOTER ═══════════════════════════════════════════════════════════ */}
+      <footer style={{ width: '100%', borderTop: `1px solid ${BD_DARK}`, background: BG_DARK, padding: '48px 0' }}>
+        <div style={{ ...WRAP, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <span style={{ fontWeight: 700, color: TEXT_D, fontSize: 14, letterSpacing: '0.04em' }}>EFFANT</span>
+              <span style={{ color: BD_DARK }}>·</span>
+              <span style={{ fontSize: 12, color: '#374151' }}>Solana Intelligence Platform</span>
+            </div>
+            <p style={{ fontSize: 12, color: '#374151' }}>billing@effant.tech</p>
+          </div>
+          <div style={{ display: 'flex', gap: 24 }}>
+            {[{ l: 'Privacy Policy', fn: onPrivacy }, { l: 'Terms of Service', fn: onTerms }].map(item => (
+              <button key={item.l} onClick={item.fn} style={{ background: 'none', border: 'none', color: '#374151',
+                cursor: 'pointer', fontSize: 12, fontFamily: 'JetBrains Mono, monospace', padding: 0 }}
+              onMouseEnter={e => (e.currentTarget.style.color = ACCENT)}
+              onMouseLeave={e => (e.currentTarget.style.color = '#374151')}>
+                {item.l}
+              </button>
+            ))}
+          </div>
+          <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#374151' }}>
             © 2025 Effant. All rights reserved.
           </p>
         </div>

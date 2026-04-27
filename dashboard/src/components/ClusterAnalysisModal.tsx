@@ -245,7 +245,7 @@ export function ClusterAnalysisModal({
     staleTime: 60_000,
   })
 
-  const isPro = sub?.tier === 'pro' && sub?.has_subscription === true
+  const isPro = ['analyst', 'analyst_pro', 'fund', 'enterprise', 'pro'].includes(sub?.tier ?? '') && sub?.has_subscription === true
 
   const { data: analysisResp, isLoading: loadingAnalysis } = useQuery({
     queryKey: ['cluster-analysis', cluster.id],
