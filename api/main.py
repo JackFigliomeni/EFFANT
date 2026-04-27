@@ -130,7 +130,35 @@ app = FastAPI(
     description="Wallet profiling, anomaly detection, and entity clustering for Solana.",
     lifespan=lifespan,
     servers=[{"url": "https://api.effant.tech", "description": "Production"}],
+    openapi_tags=[],
+    swagger_ui_parameters={"persistAuthorization": True},
 )
+
+# Tell Swagger to send X-API-Key on every request
+from fastapi.openapi.utils import get_openapi as _get_openapi
+
+def _custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    schema = _get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+        servers=app.servers,
+    )
+    schema["components"]["securitySchemes"] = {
+        "ApiKeyAuth": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "X-API-Key",
+        }
+    }
+    schema["security"] = [{"ApiKeyAuth": []}]
+    app.openapi_schema = schema
+    return schema
+
+app.openapi = _custom_openapi
 
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from starlette.responses import RedirectResponse as _Redirect
