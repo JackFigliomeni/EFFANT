@@ -254,14 +254,106 @@ def upsert_batch(parsed_txs: list[dict]) -> tuple[int, int]:
     with conn.cursor() as cur:
         psycopg2.extras.execute_batch(cur, UPSERT_WALLET, wallet_params, page_size=500)
         psycopg2.extras.execute_batch(cur, INSERT_TX,     parsed_txs,    page_size=500)
-        # Retention policy: delete transactions older than 7 days
+        # Retention policy: keep 90 days of history
         cur.execute("""
             DELETE FROM transactions
-            WHERE block_time < NOW() - INTERVAL '7 days'
+            WHERE block_time < NOW() - INTERVAL '90 days'
         """)
     conn.commit()
 
     return len(parsed_txs), len({p["address"] for p in wallet_params})
+
+
+# ── Targeted wallet fetch ─────────────────────────────────────────────────────
+
+def get_monitored_wallets() -> list[str]:
+    """Return all wallet addresses currently tracked in the DB."""
+    conn = get_conn()
+    with conn.cursor() as cur:
+        cur.execute("SELECT address FROM wallets ORDER BY last_seen DESC LIMIT 500")
+        return [r[0] for r in cur.fetchall()]
+
+
+def fetch_wallet_signatures(address: str, limit: int = 50, before: str | None = None) -> list[str]:
+    """Return recent confirmed tx signatures for a specific wallet via Helius RPC."""
+    params: list = [address, {"limit": limit, "commitment": "finalized"}]
+    if before:
+        params[1]["before"] = before
+    try:
+        result = rpc_call("getSignaturesForAddress", params)
+        return [r["signature"] for r in (result or []) if not r.get("err")]
+    except Exception as e:
+        log.warning(f"getSignaturesForAddress({address[:8]}…) failed: {e}")
+        return []
+
+
+def fetch_transaction(sig: str) -> dict | None:
+    """Fetch a single transaction by signature."""
+    try:
+        result = rpc_call("getTransaction", [
+            sig,
+            {
+                "encoding": "json",
+                "maxSupportedTransactionVersion": 0,
+                "commitment": "finalized",
+            }
+        ])
+        return result
+    except Exception:
+        return None
+
+
+def parse_full_transaction(tx: dict) -> dict | None:
+    """Parse a full transaction object (from getTransaction)."""
+    if not tx:
+        return None
+    meta        = tx.get("meta") or {}
+    transaction = tx.get("transaction") or {}
+    message     = transaction.get("message") or {}
+    block_time  = tx.get("blockTime")
+
+    sigs = transaction.get("signatures", [])
+    if not sigs:
+        return None
+    signature = sigs[0]
+
+    raw_accounts = message.get("accountKeys", [])
+    accounts = [(a["pubkey"] if isinstance(a, dict) else a) for a in raw_accounts]
+    if len(accounts) < 2:
+        return None
+
+    from_wallet = accounts[0]
+    to_wallet   = accounts[1]
+    program_id  = accounts[-1] if accounts else None
+    fee         = lamports_to_sol(meta.get("fee", 0))
+    success     = meta.get("err") is None
+
+    pre  = meta.get("preBalances", [])
+    post = meta.get("postBalances", [])
+    deltas    = [lamports_to_sol(post[i] - pre[i]) for i in range(1, min(len(pre), len(post)))]
+    positives = [d for d in deltas if d > 0]
+    amount_sol = max(positives) if positives else 0.0
+
+    ts = datetime.fromtimestamp(block_time, tz=timezone.utc) if block_time else None
+
+    return {
+        "signature":   signature,
+        "block_time":  ts,
+        "fee":         fee,
+        "success":     success,
+        "from_wallet": from_wallet,
+        "to_wallet":   to_wallet,
+        "amount_sol":  amount_sol,
+        "program_id":  program_id,
+    }
+
+
+def get_known_signatures() -> set[str]:
+    """Return all tx signatures already in the DB to avoid re-fetching."""
+    conn = get_conn()
+    with conn.cursor() as cur:
+        cur.execute("SELECT signature FROM transactions ORDER BY block_time DESC LIMIT 50000")
+        return {r[0] for r in cur.fetchall()}
 
 
 # ── Scheduled job ─────────────────────────────────────────────────────────────
@@ -273,45 +365,36 @@ def ingest_job(batch_size: int, max_retries: int):
 
     log.info(f"── Run #{run_num} starting ──────────────────────────────")
 
-    # Initialize slot cursor on first run
-    if state.current_slot == 0:
-        state.current_slot = get_finalized_slot()
-        log.info(f"Initialized at slot {state.current_slot:,}")
-        write_health("ok", "initialized")
+    wallets = get_monitored_wallets()
+    if not wallets:
+        log.info("No wallets to monitor yet.")
+        write_health("ok", "no wallets")
         return
 
-    tip = get_finalized_slot()
-
-    if state.current_slot >= tip:
-        log.info(f"At chain tip (slot {tip:,}). Nothing to do.")
-        write_health("ok", f"at tip slot {tip:,}")
-        return
-
-    slots_behind = tip - state.current_slot
-    log.info(f"Chain tip: {tip:,}  |  Behind: {slots_behind:,} slots")
-
+    known_sigs = get_known_signatures()
     parsed_batch: list[dict] = []
-    scan_slot = state.current_slot + 1
+    wallets_checked = 0
 
-    while len(parsed_batch) < batch_size and scan_slot <= tip:
-        block = get_block(scan_slot)
-        if block and block.get("transactions"):
-            block_time = block.get("blockTime")
-            for raw_tx in block["transactions"]:
-                raw_tx["blockTime"] = block_time
-                parsed = parse_transaction(raw_tx, block_time)
-                if parsed:
-                    parsed_batch.append(parsed)
-        scan_slot += 1
+    for address in wallets:
+        if len(parsed_batch) >= batch_size:
+            break
+        sigs = fetch_wallet_signatures(address, limit=20)
+        new_sigs = [s for s in sigs if s not in known_sigs]
+        for sig in new_sigs[:5]:  # max 5 new txs per wallet per run
+            tx = fetch_transaction(sig)
+            parsed = parse_full_transaction(tx)
+            if parsed:
+                parsed_batch.append(parsed)
+                known_sigs.add(sig)
+        wallets_checked += 1
 
-    state.current_slot = scan_slot - 1
+    log.info(f"Checked {wallets_checked} wallets, found {len(parsed_batch)} new txs")
 
     if not parsed_batch:
-        log.info("No transactions parsed in this window.")
-        write_health("ok", "no txs in window")
+        log.info("No new transactions found.")
+        write_health("ok", "no new txs")
         return
 
-    # Retry loop for DB writes
     for attempt in range(1, max_retries + 1):
         try:
             n_txs, n_wallets = upsert_batch(parsed_batch)
@@ -323,7 +406,7 @@ def ingest_job(batch_size: int, max_retries: int):
                     state.conn.rollback()
                 except Exception:
                     pass
-            state.conn = None  # force reconnect next attempt
+            state.conn = None
             if attempt == max_retries:
                 raise
             time.sleep(2 ** attempt)
@@ -336,11 +419,9 @@ def ingest_job(batch_size: int, max_retries: int):
     elapsed = time.monotonic() - t0
     log.info(
         f"Run #{run_num} done in {elapsed:.2f}s  |  "
-        f"batch={n_txs} txs  wallets={n_wallets}  "
-        f"total_txs={state.total_txs:,}  slot={state.current_slot:,}"
+        f"new_txs={n_txs}  wallets={n_wallets}  total_txs={state.total_txs:,}"
     )
-
-    write_health("ok", f"last batch: {n_txs} txs at slot {state.current_slot:,}")
+    write_health("ok", f"last batch: {n_txs} new txs from {wallets_checked} wallets")
 
 
 # ── Scheduler event listeners ─────────────────────────────────────────────────
