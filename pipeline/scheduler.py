@@ -15,10 +15,12 @@ import json
 import time
 import logging
 import argparse
+import threading
 import requests
 import psycopg2
 import psycopg2.extras
 from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -603,6 +605,19 @@ def send_daily_digest():
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
+def _start_health_server():
+    """Tiny HTTP server so Railway healthcheck passes."""
+    port = int(os.getenv("PORT", "8080"))
+    class H(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b'{"status":"ok"}')
+        def log_message(self, *_): pass  # silence access logs
+    t = threading.Thread(target=HTTPServer(("0.0.0.0", port), H).serve_forever, daemon=True)
+    t.start()
+    log.info(f"Health server listening on port {port}")
+
 def main():
     parser = argparse.ArgumentParser(description="EFFANT scheduled ingestion")
     parser.add_argument("--interval",    type=int,   default=300, help="Run interval in seconds (default 300)")
@@ -620,6 +635,7 @@ def main():
     log.info("=" * 60)
 
     write_health("ok", "scheduler starting")
+    _start_health_server()
 
     scheduler = BlockingScheduler(timezone="UTC")
     scheduler.add_job(
